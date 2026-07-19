@@ -1,16 +1,21 @@
 import { ApiError } from '@/lib/api/error'
 
 type Decoder<T> = (value: unknown) => T
+export type HttpFetcher = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>
 
 export async function requestData<T>(
   input: RequestInfo | URL,
   decode: Decoder<T>,
   init?: RequestInit,
+  fetcher: HttpFetcher = fetch,
 ): Promise<T> {
   const headers = new Headers(init?.headers)
   headers.set('Accept', 'application/json')
 
-  const response = await fetch(input, { ...init, headers })
+  const response = await fetcher(input, { ...init, headers })
   const payload = await readJson(response)
 
   if (!response.ok) {
@@ -25,6 +30,21 @@ export async function requestData<T>(
   }
 
   return decode(payload.data)
+}
+
+export async function requestEmpty(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  fetcher: HttpFetcher = fetch,
+): Promise<void> {
+  const headers = new Headers(init?.headers)
+  headers.set('Accept', 'application/json')
+
+  const response = await fetcher(input, { ...init, headers })
+
+  if (!response.ok) {
+    throw apiError(response.status, await readJson(response))
+  }
 }
 
 async function readJson(response: Response): Promise<unknown> {
