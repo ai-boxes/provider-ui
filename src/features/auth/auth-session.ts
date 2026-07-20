@@ -4,8 +4,8 @@ import type { AuthSession, AuthState } from '@/features/auth/auth-types'
 import { requestEmpty, type HttpFetcher } from '@/lib/api/client'
 import { ApiError } from '@/lib/api/error'
 
-const authSessionStorageKey = 'provider-ui.auth-session.v1'
-const authRefreshLockName = 'provider-ui.auth-refresh'
+const authSessionStorageKey = 'provider.auth.session.v1'
+const authRefreshLockName = 'provider.auth.refresh'
 const refreshWindowSeconds = 5 * 60
 
 type AuthStateListener = () => void
