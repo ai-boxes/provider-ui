@@ -14,3 +14,18 @@ export class ApiError extends Error {
     this.type = details.type
   }
 }
+
+// The server message is usable for most failures. `statusMessages` covers the
+// cases where a caller knows a more specific wording than the generic
+// validation text the API returns.
+export function apiErrorMessage(
+  error: unknown,
+  fallback: string,
+  statusMessages: Record<number, string> = {},
+): string {
+  if (error instanceof ApiError) {
+    return statusMessages[error.status] ?? error.message
+  }
+
+  return fallback
+}

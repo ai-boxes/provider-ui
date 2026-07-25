@@ -59,15 +59,22 @@ import type {
   ApiKeyDetail,
   ApiKeySummary,
 } from '@/features/api-keys/api-key-types'
-import { ApiError } from '@/lib/api/error'
+import { apiErrorMessage } from '@/lib/api/error'
+import { replaceListItem } from '@/lib/api/query-cache'
 
-export function ApiKeyEnabledControl({ apiKey }: { apiKey: ApiKeySummary }) {
+export function ApiKeyEnabledControl({
+  apiKey,
+  now,
+}: {
+  apiKey: ApiKeySummary
+  now: number
+}) {
   const queryClient = useQueryClient()
-  const expired = apiKey.expiresAt !== null && apiKey.expiresAt <= Date.now() / 1000
+  const expired = apiKey.expiresAt !== null && apiKey.expiresAt <= now
   const mutation = useMutation({
     mutationFn: (enabled: boolean) =>
       updateApiKey({ keyId: apiKey.id, enabled }),
-    onSuccess: (updated) => updateListItem(queryClient, updated),
+    onSuccess: (updated) => replaceListItem(queryClient, apiKeyKeys.all, updated),
   })
 
   return (
@@ -230,7 +237,7 @@ function ApiKeyExpirationDialog({ apiKey }: { apiKey: ApiKeySummary }) {
     mutationFn: (expiresAt: number | null) =>
       updateApiKey({ keyId: apiKey.id, expiresAt }),
     onSuccess: (updated) => {
-      updateListItem(queryClient, updated)
+      replaceListItem(queryClient, apiKeyKeys.all, updated)
       setOpen(false)
     },
   })
@@ -394,17 +401,9 @@ function expirationDefaultValues(apiKey: ApiKeySummary): ExpirationValues {
   }
 }
 
-function updateListItem(
-  queryClient: ReturnType<typeof useQueryClient>,
-  updated: ApiKeySummary,
-) {
-  queryClient.setQueryData<ApiKeySummary[]>(apiKeyKeys.all, (keys) =>
-    keys?.map((key) => (key.id === updated.id ? updated : key)),
-  )
-}
-
 function errorMessage(error: unknown): string {
-  return error instanceof ApiError
-    ? error.message
-    : 'The request could not be completed. Try again.'
+  return apiErrorMessage(
+    error,
+    'The request could not be completed. Try again.',
+  )
 }

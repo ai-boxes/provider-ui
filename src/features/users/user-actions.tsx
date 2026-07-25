@@ -41,7 +41,8 @@ import {
 } from '@/features/users/user-api'
 import type { ManagedUser } from '@/features/users/user-types'
 import { userKeys } from '@/features/users/users-query'
-import { ApiError } from '@/lib/api/error'
+import { apiErrorMessage } from '@/lib/api/error'
+import { replaceListItem } from '@/lib/api/query-cache'
 
 export function UserEnabledControl({
   user,
@@ -55,7 +56,7 @@ export function UserEnabledControl({
   const mutation = useMutation({
     mutationFn: (enabled: boolean) =>
       updateUserEnabled({ userId: user.id, enabled }),
-    onSuccess: (updated) => updateListItem(queryClient, updated),
+    onSuccess: (updated) => replaceListItem(queryClient, userKeys.all, updated),
   })
 
   const switchControl = (
@@ -141,7 +142,7 @@ function UserEditDialog({ user }: { user: ManagedUser }) {
         userId: user.id,
         password: values.password,
       })
-      updateListItem(queryClient, updated)
+      replaceListItem(queryClient, userKeys.all, updated)
       form.reset(defaultValues)
       setOpen(false)
     } catch (error) {
@@ -246,35 +247,12 @@ const defaultValues: EditUserValues = {
   password: '',
 }
 
-function updateListItem(
-  queryClient: ReturnType<typeof useQueryClient>,
-  updated: ManagedUser,
-) {
-  queryClient.setQueryData<ManagedUser[]>(userKeys.all, (current) => {
-    if (!current) {
-      return current
-    }
-
-    return current.map((user) => (user.id === updated.id ? updated : user))
-  })
+const statusMessages = {
+  400: 'Check the entered values and try again.',
+  403: 'This operation is not allowed.',
+  404: 'The user was not found.',
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    if (error.status === 403) {
-      return 'This operation is not allowed.'
-    }
-
-    if (error.status === 404) {
-      return 'The user was not found.'
-    }
-
-    if (error.status === 400) {
-      return 'Check the entered values and try again.'
-    }
-
-    return error.message
-  }
-
-  return fallback
+  return apiErrorMessage(error, fallback, statusMessages)
 }

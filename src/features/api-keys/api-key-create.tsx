@@ -40,7 +40,7 @@ import { dateTimeLocalToTimestamp } from '@/features/api-keys/api-key-format'
 import { ApiKeySecret } from '@/features/api-keys/api-key-secret'
 import { apiKeyKeys } from '@/features/api-keys/api-keys-query'
 import type { ApiKeyDetail } from '@/features/api-keys/api-key-types'
-import { ApiError } from '@/lib/api/error'
+import { apiErrorMessage } from '@/lib/api/error'
 
 const apiKeyCreateSchema = z
   .object({
@@ -57,13 +57,15 @@ const apiKeyCreateSchema = z
       })
     }
 
-    if (values.key.length < 16) {
+    if ([...values.key].length < 16) {
       context.addIssue({
         code: 'custom',
         path: ['key'],
         message: 'Key must contain at least 16 characters.',
       })
-    } else if (!/^[A-Za-z0-9_-]+$/.test(values.key)) {
+    }
+
+    if (!/^[A-Za-z0-9_-]+$/.test(values.key)) {
       context.addIssue({
         code: 'custom',
         path: ['key'],
@@ -246,7 +248,7 @@ export function ApiKeyCreateDialog() {
                   <FieldError errors={[form.formState.errors.key]} />
                   {generateError ? (
                     <p role="alert" className="text-xs text-destructive">
-                      {errorMessage(generateError, 'The server could not generate a key.')}
+                      {apiErrorMessage(generateError, 'The server could not generate a key.')}
                     </p>
                   ) : null}
                 </Field>
@@ -322,12 +324,9 @@ function CreateError({ error }: { error: unknown }) {
       <CircleAlertIcon />
       <AlertTitle>Unable to create API key</AlertTitle>
       <AlertDescription>
-        {errorMessage(error, 'The API key could not be created. Try again.')}
+        {apiErrorMessage(error, 'The API key could not be created. Try again.')}
       </AlertDescription>
     </Alert>
   )
 }
 
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
-}

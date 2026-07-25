@@ -32,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { createUser } from '@/features/users/user-api'
 import { userKeys } from '@/features/users/users-query'
-import { ApiError } from '@/lib/api/error'
+import { apiErrorMessage } from '@/lib/api/error'
 
 const createUserSchema = z
   .object({
@@ -196,17 +196,8 @@ function CreateError({ error }: { error: unknown }) {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    if (error.status === 409) {
-      return 'A user with this username already exists.'
-    }
-
-    if (error.status === 400) {
-      return 'Check the entered values and try again.'
-    }
-
-    return error.message
-  }
-
-  return fallback
+  return apiErrorMessage(error, fallback, {
+    400: 'Check the entered values and try again.',
+    409: 'A user with this username already exists.',
+  })
 }

@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useMinuteNow } from '@/hooks/use-minute-now'
 import {
   getProviderQuota,
   refreshProviderQuota,
@@ -67,9 +68,6 @@ const currencyFormatter = new Intl.NumberFormat('en', {
   style: 'currency',
   currency: 'USD',
 })
-
-const minuteListeners = new Set<(now: number) => void>()
-let minuteTimer: ReturnType<typeof setInterval> | null = null
 
 export function ProviderQuotaSummary({
   accountId,
@@ -931,7 +929,7 @@ function titleCase(value: string): string {
 }
 
 function formatRelativeTimestamp(timestamp: number, now: number): string {
-  const seconds = Math.min(0, Math.round(timestamp - now / 1000))
+  const seconds = Math.min(0, Math.round(timestamp - now))
   const absoluteSeconds = Math.abs(seconds)
 
   if (absoluteSeconds < 60) {
@@ -952,7 +950,7 @@ function formatRelativeTimestamp(timestamp: number, now: number): string {
 }
 
 function formatResetTime(timestamp: number, now: number): string {
-  const remainingMilliseconds = timestamp * 1000 - now
+  const remainingMilliseconds = (timestamp - now) * 1000
 
   if (remainingMilliseconds <= 0) {
     return 'reset time passed'
@@ -972,28 +970,3 @@ function formatResetTime(timestamp: number, now: number): string {
   return `resets ${relativeTimeFormatter.format(days, 'day')}`
 }
 
-function useMinuteNow(): number {
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    minuteListeners.add(setNow)
-
-    if (minuteTimer === null) {
-      minuteTimer = setInterval(() => {
-        const nextNow = Date.now()
-        minuteListeners.forEach((listener) => listener(nextNow))
-      }, 60_000)
-    }
-
-    return () => {
-      minuteListeners.delete(setNow)
-
-      if (minuteListeners.size === 0 && minuteTimer !== null) {
-        clearInterval(minuteTimer)
-        minuteTimer = null
-      }
-    }
-  }, [])
-
-  return now
-}

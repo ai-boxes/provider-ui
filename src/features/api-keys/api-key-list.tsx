@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import {
   CircleAlertIcon,
   CircleCheckIcon,
@@ -42,6 +41,7 @@ import {
 } from '@/features/api-keys/api-key-format'
 import { apiKeysQueryOptions } from '@/features/api-keys/api-keys-query'
 import type { ApiKeySummary } from '@/features/api-keys/api-key-types'
+import { useMinuteNow } from '@/hooks/use-minute-now'
 
 export function ApiKeyList() {
   const apiKeys = useQuery(apiKeysQueryOptions)
@@ -132,7 +132,7 @@ function ApiKeyTableRow({
       <TableCell>
         <div className="grid gap-2">
           <ApiKeyStatusBadge apiKey={apiKey} now={now} />
-          <ApiKeyEnabledControl apiKey={apiKey} />
+          <ApiKeyEnabledControl apiKey={apiKey} now={now} />
         </div>
       </TableCell>
       <TableCell>
@@ -167,7 +167,7 @@ function ApiKeyCard({
       <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t pt-4 text-sm">
         <div className="grid gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Access</span>
-          <ApiKeyEnabledControl apiKey={apiKey} />
+          <ApiKeyEnabledControl apiKey={apiKey} now={now} />
         </div>
         <div className="grid gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Created</span>
@@ -377,17 +377,6 @@ function ApiKeyListEmpty() {
       </Empty>
     </Card>
   )
-}
-
-function useMinuteNow(): number {
-  const [now, setNow] = useState(() => Date.now() / 1000)
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now() / 1000), 60_000)
-    return () => window.clearInterval(timer)
-  }, [])
-
-  return now
 }
 
 function formatKeyCount(count: number): string {

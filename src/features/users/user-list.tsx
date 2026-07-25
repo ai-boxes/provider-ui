@@ -224,21 +224,67 @@ function UserIdentity({
 
 function UserListLoading() {
   return (
-    <div className="grid gap-3">
-      <Skeleton className="h-28 w-full" />
-      <Skeleton className="h-28 w-full" />
-      <Skeleton className="h-28 w-full lg:hidden" />
-    </div>
+    <>
+      <Card className="hidden gap-0 py-0 lg:flex">
+        <div className="grid grid-cols-[2fr_1fr_1fr_0.8fr_1.4fr] gap-4 border-b bg-muted/35 px-4 py-3">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} className="h-4 w-20" />
+          ))}
+        </div>
+        {Array.from({ length: 3 }, (_, index) => (
+          <div
+            key={index}
+            className="grid grid-cols-[2fr_1fr_1fr_0.8fr_1.4fr] items-center gap-4 border-b px-4 py-4 last:border-b-0"
+          >
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-9" />
+              <div className="grid gap-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-36" />
+              </div>
+            </div>
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-4 w-20" />
+            <div className="flex justify-end">
+              <Skeleton className="h-8 w-16" />
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      <div className="grid gap-3 lg:hidden">
+        {Array.from({ length: 3 }, (_, index) => (
+          <Card key={index} className="gap-4 p-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-9" />
+              <div className="grid gap-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-36" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+              {Array.from({ length: 3 }, (_, fieldIndex) => (
+                <div key={fieldIndex} className="grid gap-2">
+                  <Skeleton className="h-3 w-14" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </>
   )
 }
 
 function UserListError({ onRetry }: { onRetry: () => void }) {
   return (
-    <Alert variant="destructive">
+    <Alert className="max-w-2xl">
       <CircleAlertIcon />
       <AlertTitle>Unable to load users</AlertTitle>
       <AlertDescription>
-        The user list could not be loaded. Check your connection and try again.
+        Check the server connection and try again.
       </AlertDescription>
       <Button
         variant="outline"
@@ -255,17 +301,19 @@ function UserListError({ onRetry }: { onRetry: () => void }) {
 
 function UserListEmpty() {
   return (
-    <Empty className="border border-dashed bg-background/60">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <UsersIcon />
-        </EmptyMedia>
-        <EmptyTitle>No users yet</EmptyTitle>
-        <EmptyDescription>
-          Create the first standard user account for this control plane.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <Card className="min-h-80 justify-center">
+      <Empty className="border-0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon" className="size-10 rounded-xl">
+            <UsersIcon />
+          </EmptyMedia>
+          <EmptyTitle>No users yet</EmptyTitle>
+          <EmptyDescription>
+            Create the first standard user account for this control plane.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </Card>
   )
 }
 
