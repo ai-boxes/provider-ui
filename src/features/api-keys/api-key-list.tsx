@@ -1,0 +1,395 @@
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  Clock3Icon,
+  KeyRoundIcon,
+  RefreshCwIcon,
+  ShieldOffIcon,
+} from 'lucide-react'
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  ApiKeyActions,
+  ApiKeyEnabledControl,
+} from '@/features/api-keys/api-key-actions'
+import { ApiKeyCreateDialog } from '@/features/api-keys/api-key-create'
+import {
+  formatApiKeyDate,
+  formatApiKeyDateTime,
+  getApiKeyStatus,
+  type ApiKeyStatus,
+} from '@/features/api-keys/api-key-format'
+import { apiKeysQueryOptions } from '@/features/api-keys/api-keys-query'
+import type { ApiKeySummary } from '@/features/api-keys/api-key-types'
+
+export function ApiKeyList() {
+  const apiKeys = useQuery(apiKeysQueryOptions)
+  const now = useMinuteNow()
+
+  return (
+    <section className="flex flex-1 flex-col gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid max-w-2xl gap-1">
+          <p className="text-sm leading-6 text-muted-foreground">
+            Credentials used by Codex, Claude, and other clients to call models through your available Providers.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Each key runs with your Provider access and can be disabled independently.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-start">
+          {apiKeys.data ? (
+            <Badge variant="outline" className="bg-background">
+              {formatKeyCount(apiKeys.data.length)}
+            </Badge>
+          ) : null}
+          <ApiKeyCreateDialog />
+        </div>
+      </div>
+
+      {apiKeys.isPending ? <ApiKeyListLoading /> : null}
+      {apiKeys.isError ? (
+        <ApiKeyListError onRetry={() => void apiKeys.refetch()} />
+      ) : null}
+      {apiKeys.data?.length === 0 ? <ApiKeyListEmpty /> : null}
+      {apiKeys.data && apiKeys.data.length > 0 ? (
+        <ApiKeyCollection apiKeys={apiKeys.data} now={now} />
+      ) : null}
+    </section>
+  )
+}
+
+function ApiKeyCollection({
+  apiKeys,
+  now,
+}: {
+  apiKeys: ApiKeySummary[]
+  now: number
+}) {
+  return (
+    <>
+      <Card className="hidden gap-0 py-0 lg:flex">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/35 hover:bg-muted/35">
+              <TableHead className="pl-4">API key</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Expiration</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="pr-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {apiKeys.map((apiKey) => (
+              <ApiKeyTableRow key={apiKey.id} apiKey={apiKey} now={now} />
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <div className="grid gap-3 lg:hidden">
+        {apiKeys.map((apiKey) => (
+          <ApiKeyCard key={apiKey.id} apiKey={apiKey} now={now} />
+        ))}
+      </div>
+    </>
+  )
+}
+
+function ApiKeyTableRow({
+  apiKey,
+  now,
+}: {
+  apiKey: ApiKeySummary
+  now: number
+}) {
+  return (
+    <TableRow>
+      <TableCell className="py-4 pl-4">
+        <ApiKeyIdentity apiKey={apiKey} />
+      </TableCell>
+      <TableCell>
+        <div className="grid gap-2">
+          <ApiKeyStatusBadge apiKey={apiKey} now={now} />
+          <ApiKeyEnabledControl apiKey={apiKey} />
+        </div>
+      </TableCell>
+      <TableCell>
+        <ExpirationSummary apiKey={apiKey} now={now} />
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {formatApiKeyDate(apiKey.createdAt)}
+      </TableCell>
+      <TableCell className="pr-4">
+        <div className="flex justify-end">
+          <ApiKeyActions apiKey={apiKey} />
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
+function ApiKeyCard({
+  apiKey,
+  now,
+}: {
+  apiKey: ApiKeySummary
+  now: number
+}) {
+  return (
+    <Card className="gap-4 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <ApiKeyIdentity apiKey={apiKey} />
+        <ApiKeyStatusBadge apiKey={apiKey} now={now} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t pt-4 text-sm">
+        <div className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Access</span>
+          <ApiKeyEnabledControl apiKey={apiKey} />
+        </div>
+        <div className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Created</span>
+          <span className="text-muted-foreground">
+            {formatApiKeyDate(apiKey.createdAt)}
+          </span>
+        </div>
+        <div className="col-span-2 grid gap-1.5 border-t pt-4">
+          <span className="text-xs font-medium text-muted-foreground">Expiration</span>
+          <ExpirationSummary apiKey={apiKey} now={now} />
+        </div>
+      </div>
+
+      <div className="border-t pt-4">
+        <ApiKeyActions apiKey={apiKey} />
+      </div>
+    </Card>
+  )
+}
+
+function ApiKeyIdentity({ apiKey }: { apiKey: ApiKeySummary }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/45 text-muted-foreground shadow-xs">
+        <KeyRoundIcon className="size-4" />
+      </span>
+      <span className="grid min-w-0 gap-1">
+        <span className="truncate font-medium">{apiKey.label}</span>
+        <code className="truncate font-mono text-xs tracking-wide text-muted-foreground">
+          {apiKey.maskedKey}
+        </code>
+        <span className="hidden text-xs text-muted-foreground lg:block">
+          Updated {formatApiKeyDate(apiKey.updatedAt)}
+        </span>
+      </span>
+    </div>
+  )
+}
+
+function ExpirationSummary({
+  apiKey,
+  now,
+}: {
+  apiKey: ApiKeySummary
+  now: number
+}) {
+  if (apiKey.expiresAt === null) {
+    return (
+      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Clock3Icon className="size-3.5" />
+        Never expires
+      </span>
+    )
+  }
+
+  const expired = apiKey.expiresAt <= now
+
+  return (
+    <span
+      className={
+        expired
+          ? 'flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-300'
+          : 'flex items-center gap-1.5 text-sm text-muted-foreground'
+      }
+      title={formatApiKeyDateTime(apiKey.expiresAt)}
+    >
+      <Clock3Icon className="size-3.5" />
+      {expired ? 'Expired' : 'Expires'} {formatApiKeyDate(apiKey.expiresAt)}
+    </span>
+  )
+}
+
+function ApiKeyStatusBadge({
+  apiKey,
+  now,
+}: {
+  apiKey: ApiKeySummary
+  now: number
+}) {
+  const status = getApiKeyStatus(apiKey, now)
+  const config = statusConfig[status]
+  const Icon = config.icon
+
+  return (
+    <Badge variant="outline" className={config.className}>
+      <Icon />
+      {config.label}
+    </Badge>
+  )
+}
+
+const statusConfig: Record<
+  ApiKeyStatus,
+  { label: string; icon: typeof CircleCheckIcon; className: string }
+> = {
+  active: {
+    label: 'Active',
+    icon: CircleCheckIcon,
+    className:
+      'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300',
+  },
+  disabled: {
+    label: 'Disabled',
+    icon: ShieldOffIcon,
+    className: 'bg-background text-muted-foreground',
+  },
+  expired: {
+    label: 'Expired',
+    icon: Clock3Icon,
+    className:
+      'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300',
+  },
+}
+
+function ApiKeyListLoading() {
+  return (
+    <>
+      <Card className="hidden gap-0 py-0 lg:flex">
+        <div className="grid grid-cols-[2fr_1fr_1fr_0.8fr_2.2fr] gap-4 border-b bg-muted/35 px-4 py-3">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} className="h-4 w-20" />
+          ))}
+        </div>
+        {Array.from({ length: 3 }, (_, index) => (
+          <div
+            key={index}
+            className="grid grid-cols-[2fr_1fr_1fr_0.8fr_2.2fr] items-center gap-4 border-b px-4 py-4 last:border-b-0"
+          >
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-9" />
+              <div className="grid gap-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-44" />
+              </div>
+            </div>
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-20" />
+            <div className="flex justify-end gap-2">
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      <div className="grid gap-3 lg:hidden">
+        {Array.from({ length: 3 }, (_, index) => (
+          <Card key={index} className="gap-4 p-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-9" />
+              <div className="grid gap-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-44" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+              {Array.from({ length: 4 }, (_, fieldIndex) => (
+                <div key={fieldIndex} className="grid gap-2">
+                  <Skeleton className="h-3 w-14" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function ApiKeyListError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Alert className="max-w-2xl">
+      <CircleAlertIcon />
+      <AlertTitle>Unable to load API keys</AlertTitle>
+      <AlertDescription>
+        Check the server connection and try again.
+      </AlertDescription>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+        onClick={onRetry}
+      >
+        <RefreshCwIcon />
+        Retry
+      </Button>
+    </Alert>
+  )
+}
+
+function ApiKeyListEmpty() {
+  return (
+    <Card className="min-h-80 justify-center">
+      <Empty className="border-0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon" className="size-10 rounded-xl">
+            <KeyRoundIcon />
+          </EmptyMedia>
+          <EmptyTitle>No API keys yet</EmptyTitle>
+          <EmptyDescription>
+            Create a credential before connecting Codex, Claude, or another API client.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </Card>
+  )
+}
+
+function useMinuteNow(): number {
+  const [now, setNow] = useState(() => Date.now() / 1000)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now() / 1000), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  return now
+}
+
+function formatKeyCount(count: number): string {
+  return `${count} ${count === 1 ? 'key' : 'keys'}`
+}
