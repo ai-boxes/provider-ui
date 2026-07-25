@@ -102,7 +102,6 @@ export type ProviderQuotaSnapshot = {
   accountId: string
   provider: ProviderKind
   fetchedAt: number
-  lastObservedAt: number | null
   groups: ProviderQuotaGroup[]
   warnings: string[]
 }

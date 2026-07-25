@@ -1,13 +1,27 @@
-import type { AuthSession, AuthUser } from '@/features/auth/auth-types'
+import type {
+  AuthSession,
+  AuthUser,
+  AuthUserRole,
+} from '@/features/auth/auth-types'
+import {
+  requireBoolean,
+  requireEnum,
+  requireNonEmptyString,
+  requireRecord,
+  requireTimestamp,
+} from '@/lib/api/decode'
+
+export const authUserRoles = [
+  'super_admin',
+  'user',
+] as const satisfies readonly AuthUserRole[]
 
 export function decodeSetupStatus(value: unknown): { required: boolean } {
   const record = requireRecord(value, 'setup status')
 
-  if (typeof record.required !== 'boolean') {
-    throw new TypeError('setup status required must be a boolean')
+  return {
+    required: requireBoolean(record.required, 'setup status required'),
   }
-
-  return { required: record.required }
 }
 
 export function decodeAuthSession(value: unknown): AuthSession {
@@ -79,47 +93,12 @@ function decodeStoredAuthUser(value: unknown): AuthUser {
 }
 
 function decodeUserFields(value: Record<string, unknown>): AuthUser {
-  if (value.role !== 'super_admin' && value.role !== 'user') {
-    throw new TypeError('auth user role is unsupported')
-  }
-
-  if (typeof value.enabled !== 'boolean') {
-    throw new TypeError('auth user enabled must be a boolean')
-  }
-
   return {
     id: requireNonEmptyString(value.id, 'user ID'),
     username: requireNonEmptyString(value.username, 'username'),
-    role: value.role,
-    enabled: value.enabled,
+    role: requireEnum(value.role, authUserRoles, 'auth user role'),
+    enabled: requireBoolean(value.enabled, 'auth user enabled state'),
     createdAt: requireTimestamp(value.createdAt, 'user creation time'),
     updatedAt: requireTimestamp(value.updatedAt, 'user update time'),
   }
-}
-
-function requireRecord(
-  value: unknown,
-  label: string,
-): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new TypeError(`${label} must be an object`)
-  }
-
-  return value as Record<string, unknown>
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new TypeError(`${label} must be a non-empty string`)
-  }
-
-  return value
-}
-
-function requireTimestamp(value: unknown, label: string): number {
-  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
-    throw new TypeError(`${label} must be a positive integer timestamp`)
-  }
-
-  return value as number
 }

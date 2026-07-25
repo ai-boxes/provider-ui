@@ -2,13 +2,17 @@ import type {
   ApiKeyDetail,
   ApiKeySummary,
 } from '@/features/api-keys/api-key-types'
+import {
+  optionalTimestamp,
+  requireArray,
+  requireBoolean,
+  requireNonEmptyString,
+  requireRecord,
+  requireTimestamp,
+} from '@/lib/api/decode'
 
 export function decodeApiKeys(value: unknown): ApiKeySummary[] {
-  if (!Array.isArray(value)) {
-    throw new TypeError('API keys must be an array')
-  }
-
-  return value.map((key, index) =>
+  return requireArray(value, 'API keys').map((key, index) =>
     decodeApiKeySummary(key, `API key ${index + 1}`),
   )
 }
@@ -55,45 +59,3 @@ function decodeCommonApiKey(record: Record<string, unknown>) {
   }
 }
 
-function requireRecord(
-  value: unknown,
-  label: string,
-): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new TypeError(`${label} must be an object`)
-  }
-
-  return value as Record<string, unknown>
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new TypeError(`${label} must be a non-empty string`)
-  }
-
-  return value
-}
-
-function requireBoolean(value: unknown, label: string): boolean {
-  if (typeof value !== 'boolean') {
-    throw new TypeError(`${label} must be a boolean`)
-  }
-
-  return value
-}
-
-function requireTimestamp(value: unknown, label: string): number {
-  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
-    throw new TypeError(`${label} must be a positive integer timestamp`)
-  }
-
-  return value as number
-}
-
-function optionalTimestamp(value: unknown, label: string): number | null {
-  if (value == null) {
-    return null
-  }
-
-  return requireTimestamp(value, label)
-}

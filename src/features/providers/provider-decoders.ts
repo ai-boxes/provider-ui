@@ -1,4 +1,22 @@
-import { isOAuthProvider } from '@/features/providers/provider-format'
+import {
+  isOAuthProvider,
+  oauthProviderKinds,
+  providerKinds,
+} from '@/features/providers/provider-format'
+import {
+  optionalArray,
+  optionalEnum,
+  optionalRecord,
+  optionalString,
+  optionalTimestamp,
+  requireArray,
+  requireBoolean,
+  requireEnum,
+  requireNonEmptyString,
+  requirePositiveInteger,
+  requireRecord,
+  requireTimestamp,
+} from '@/lib/api/decode'
 import type {
   CreatedProviderAccount,
   ProviderAccount,
@@ -17,22 +35,11 @@ import type {
   ProviderQuotaGroupScope,
   ProviderQuotaMetricKind,
   ProviderQuotaPeriodKind,
+  ProviderQuotaScalar,
   ProviderQuotaSupport,
   ProviderQuotaUnit,
   ProviderVisibility,
 } from '@/features/providers/provider-types'
-
-const providerKinds = [
-  'grok',
-  'codex',
-  'openai_compatible',
-  'anthropic_compatible',
-] as const satisfies readonly ProviderKind[]
-
-const oauthProviderKinds = [
-  'grok',
-  'codex',
-] as const satisfies readonly Extract<ProviderKind, 'grok' | 'codex'>[]
 
 const providerVisibilities = [
   'private',
@@ -309,10 +316,6 @@ function decodeProviderQuotaSnapshot(value: unknown) {
     accountId: requireNonEmptyString(record.account_id, 'quota account ID'),
     provider: requireEnum(record.provider, providerKinds, 'quota provider type'),
     fetchedAt: requireTimestamp(record.fetched_at, 'quota fetch time'),
-    lastObservedAt: optionalTimestamp(
-      record.last_observed_at,
-      'quota observation time',
-    ),
     groups: requireArray(record.groups, 'quota groups').map((group, index) =>
       decodeProviderQuotaGroup(group, `quota group ${index + 1}`),
     ),
@@ -419,56 +422,10 @@ function decodeBaseUrl(value: unknown, provider: ProviderKind): string | null {
   return requireNonEmptyString(config.base_url, 'provider base URL')
 }
 
-function requireRecord(
-  value: unknown,
-  label: string,
-): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new TypeError(`${label} must be an object`)
-  }
 
-  return value as Record<string, unknown>
-}
 
-function requireEnum<T extends string>(
-  value: unknown,
-  allowed: readonly T[],
-  label: string,
-): T {
-  if (typeof value !== 'string' || !allowed.includes(value as T)) {
-    throw new TypeError(`${label} is unsupported`)
-  }
 
-  return value as T
-}
 
-function optionalEnum<T extends string>(
-  value: unknown,
-  allowed: readonly T[],
-  label: string,
-): T | null {
-  if (value == null) {
-    return null
-  }
-
-  return requireEnum(value, allowed, label)
-}
-
-function requireArray(value: unknown, label: string): unknown[] {
-  if (!Array.isArray(value)) {
-    throw new TypeError(`${label} must be an array`)
-  }
-
-  return value
-}
-
-function optionalArray(value: unknown, label: string): unknown[] {
-  if (value == null) {
-    return []
-  }
-
-  return requireArray(value, label)
-}
 
 // Amounts arrive as a number or as a decimal string; both are normalized here
 // so the rest of the app only deals with numbers.
@@ -495,42 +452,18 @@ function optionalQuotaAmount(value: unknown, label: string): number | null {
   return requireQuotaAmount(value, label)
 }
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new TypeError(`${label} must be a non-empty string`)
-  }
 
-  return value
-}
 
-function optionalString(value: unknown, label: string): string | null {
-  if (value === null) {
-    return null
-  }
-
-  return requireNonEmptyString(value, label)
-}
-
-function optionalRecord(
-  value: unknown,
-  label: string,
-): Record<string, unknown> | null {
-  if (value === null) {
-    return null
-  }
-
-  return requireRecord(value, label)
-}
 
 function decodeQuotaAttributes(
   value: unknown,
-): Record<string, string | number | boolean> {
+): Record<string, ProviderQuotaScalar> {
   if (value == null) {
     return {}
   }
 
   const record = requireRecord(value, 'quota attributes')
-  const attributes: Record<string, string | number | boolean> = {}
+  const attributes: Record<string, ProviderQuotaScalar> = {}
 
   for (const [key, attribute] of Object.entries(record)) {
     if (
@@ -547,37 +480,9 @@ function decodeQuotaAttributes(
   return attributes
 }
 
-function requireBoolean(value: unknown, label: string): boolean {
-  if (typeof value !== 'boolean') {
-    throw new TypeError(`${label} must be a boolean`)
-  }
 
-  return value
-}
 
-function requireTimestamp(value: unknown, label: string): number {
-  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
-    throw new TypeError(`${label} must be a positive integer timestamp`)
-  }
 
-  return value as number
-}
-
-function optionalTimestamp(value: unknown, label: string): number | null {
-  if (value == null) {
-    return null
-  }
-
-  return requireTimestamp(value, label)
-}
-
-function requirePositiveInteger(value: unknown, label: string): number {
-  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
-    throw new TypeError(`${label} must be a positive integer`)
-  }
-
-  return value as number
-}
 
 // Upstream reports the window length verbatim, so a zero-length window is
 // possible. It carries no more information than an absent duration.

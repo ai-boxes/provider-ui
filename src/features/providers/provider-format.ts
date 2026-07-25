@@ -16,6 +16,22 @@ const oauthServiceNames: Record<OAuthProviderKind, string> = {
   codex: 'OpenAI',
 }
 
+// Derived from the label maps so the accepted kinds cannot drift from the
+// kinds the UI knows how to render.
+export const providerKinds = Object.keys(
+  providerNames,
+) as readonly ProviderKind[]
+
+export const oauthProviderKinds = Object.keys(
+  oauthServiceNames,
+) as readonly OAuthProviderKind[]
+
+export function parseProviderKind(value: string | null): ProviderKind | null {
+  return value !== null && Object.hasOwn(providerNames, value)
+    ? (value as ProviderKind)
+    : null
+}
+
 export function formatProviderKind(provider: ProviderKind): string {
   return providerNames[provider]
 }

@@ -22,6 +22,7 @@ import {
   formatProviderKind,
   isCompatibleProvider,
   isOAuthProvider,
+  parseProviderKind,
 } from '@/features/providers/provider-format'
 import { ProviderOAuthFlow } from '@/features/providers/provider-oauth-flow'
 import type { ProviderKind } from '@/features/providers/provider-types'
@@ -256,15 +257,6 @@ function SelectionCard({
       <ArrowRightIcon className="mt-auto size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
     </Link>
   )
-}
-
-function parseProviderKind(value: string | null): ProviderKind | null {
-  return value === 'grok' ||
-    value === 'codex' ||
-    value === 'openai_compatible' ||
-    value === 'anthropic_compatible'
-    ? value
-    : null
 }
 
 function parseOAuthMethod(value: string | null): 'oauth' | 'json' | null {
