@@ -32,6 +32,7 @@ import type {
   ProviderAccountWithQuota,
   ProviderQuota,
   ProviderQuotaErrorKind,
+  ProviderQuotaGroup,
   ProviderQuotaMetric,
   ProviderQuotaPeriod,
 } from '@/features/providers/provider-types'
@@ -56,6 +57,10 @@ const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', {
 
 const percentFormatter = new Intl.NumberFormat('en', {
   maximumFractionDigits: 1,
+})
+
+const amountFormatter = new Intl.NumberFormat('en', {
+  maximumFractionDigits: 2,
 })
 
 const currencyFormatter = new Intl.NumberFormat('en', {
@@ -126,8 +131,8 @@ export function ProviderQuotaSummary({
     )
   }
 
-  const used = percentageUsed(usage)
-  const remaining = percentageRemaining(usage)
+  const used = percentageUsed(usage.metric)
+  const remaining = percentageRemaining(usage.metric)
 
   return (
     <div className="grid min-w-32 max-w-80 gap-1.5">
@@ -264,15 +269,17 @@ function QuotaContent({ quota }: { quota: ProviderQuota }) {
   }
 
   const primaryUsage = findPrimaryUsage(quota)
-  const billingMetrics = quota.snapshot.groups
-    .filter((group) => group.scope === 'billing')
-    .flatMap((group) => group.metrics)
-  const otherMetrics = quota.snapshot.groups
-    .filter((group) => group.scope !== 'billing')
-    .flatMap((group) => group.metrics)
-    .filter((metric) => metric !== primaryUsage)
+  const billingGroups = quota.snapshot.groups.filter(
+    (group) => group.scope === 'billing',
+  )
+  const billingMetrics = metricItems(billingGroups)
+  const otherMetrics = metricItems(
+    quota.snapshot.groups.filter((group) => group.scope !== 'billing'),
+  ).filter(({ metric }) => metric !== primaryUsage?.metric)
   const hasUsageMetrics = Boolean(primaryUsage) || otherMetrics.length > 0
-  const hasBillingMetrics = billingMetrics.length > 0
+  const hasBillingMetrics =
+    billingMetrics.length > 0 ||
+    billingGroups.some((group) => Object.keys(group.attributes).length > 0)
 
   return (
     <div className="grid gap-5">
@@ -295,7 +302,15 @@ function QuotaContent({ quota }: { quota: ProviderQuota }) {
       >
         {hasUsageMetrics ? (
           <div className="grid content-start gap-4">
-            {primaryUsage ? <PrimaryUsage metric={primaryUsage} /> : null}
+            {primaryUsage ? (
+              <PrimaryUsage
+                metric={primaryUsage.metric}
+                label={quotaMetricLabel(
+                  primaryUsage.metric.key,
+                  primaryUsage.group,
+                )}
+              />
+            ) : null}
             {otherMetrics.length > 0 ? (
               <div
                 className={
@@ -304,8 +319,12 @@ function QuotaContent({ quota }: { quota: ProviderQuota }) {
                     : 'grid gap-4 sm:grid-cols-2'
                 }
               >
-                {otherMetrics.map((metric) => (
-                  <QuotaMetricSummary key={metric.key} metric={metric} />
+                {otherMetrics.map(({ group, metric }) => (
+                  <QuotaMetricSummary
+                    key={`${group.key}:${metric.key}`}
+                    group={group}
+                    metric={metric}
+                  />
                 ))}
               </div>
             ) : null}
@@ -314,7 +333,7 @@ function QuotaContent({ quota }: { quota: ProviderQuota }) {
 
         {hasBillingMetrics ? (
           <BillingSummary
-            metrics={billingMetrics}
+            groups={billingGroups}
             separated={hasUsageMetrics}
           />
         ) : null}
@@ -336,7 +355,13 @@ function QuotaContent({ quota }: { quota: ProviderQuota }) {
   )
 }
 
-function PrimaryUsage({ metric }: { metric: ProviderQuotaMetric }) {
+function PrimaryUsage({
+  metric,
+  label,
+}: {
+  metric: ProviderQuotaMetric
+  label: string
+}) {
   const used = percentageUsed(metric)
   const remaining = percentageRemaining(metric)
 
@@ -345,7 +370,7 @@ function PrimaryUsage({ metric }: { metric: ProviderQuotaMetric }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-1">
           <span className="text-xs font-medium text-muted-foreground">
-            Included usage
+            {label}
           </span>
           <span className="text-3xl font-semibold tracking-tight tabular-nums">
             {remaining === null
@@ -361,7 +386,7 @@ function PrimaryUsage({ metric }: { metric: ProviderQuotaMetric }) {
           <Progress
             value={clampPercentage(used)}
             className="gap-2 [&_[data-slot=progress-track]]:h-1.5"
-            aria-label={`${formatPercent(used)} of included usage used`}
+            aria-label={`${label}: ${formatPercent(used)} used`}
           />
           <span className="text-xs text-muted-foreground tabular-nums">
             {formatPercent(used)} used
@@ -397,12 +422,15 @@ function PrimaryUsage({ metric }: { metric: ProviderQuotaMetric }) {
 }
 
 function BillingSummary({
-  metrics,
+  groups,
   separated,
 }: {
-  metrics: ProviderQuotaMetric[]
+  groups: ProviderQuotaGroup[]
   separated: boolean
 }) {
+  const metrics = metricItems(groups)
+  const attributes = groups.flatMap((group) => billingAttributes(group))
+
   return (
     <section
       className={
@@ -417,22 +445,42 @@ function BillingSummary({
           Account-funded usage and balances.
         </span>
       </div>
+      {attributes.length > 0 ? (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-muted/35 p-3 text-xs">
+          {attributes.map((attribute) => (
+            <div key={attribute.key} className="grid gap-0.5">
+              <dt className="text-muted-foreground">{attribute.label}</dt>
+              <dd className="font-medium">{attribute.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
       <div className="divide-y">
-        {metrics.map((metric) => (
-          <QuotaMetricSummary key={metric.key} metric={metric} />
+        {metrics.map(({ group, metric }) => (
+          <QuotaMetricSummary
+            key={`${group.key}:${metric.key}`}
+            group={group}
+            metric={metric}
+          />
         ))}
       </div>
     </section>
   )
 }
 
-function QuotaMetricSummary({ metric }: { metric: ProviderQuotaMetric }) {
+function QuotaMetricSummary({
+  metric,
+  group,
+}: {
+  metric: ProviderQuotaMetric
+  group?: ProviderQuotaGroup
+}) {
   const display = quotaMetricDisplay(metric)
 
   return (
     <div className="grid content-start gap-1.5 py-3 first:pt-0 last:pb-0">
       <span className="text-xs font-medium text-muted-foreground">
-        {quotaMetricLabel(metric.key)}
+        {quotaMetricLabel(metric.key, group)}
       </span>
       <span className="text-base font-semibold tracking-tight tabular-nums">
         {display.primary}
@@ -445,7 +493,7 @@ function QuotaMetricSummary({ metric }: { metric: ProviderQuotaMetric }) {
       {display.percentage !== null ? (
         <Progress
           value={clampPercentage(display.percentage)}
-          aria-label={`${quotaMetricLabel(metric.key)}: ${formatPercent(display.percentage)} used`}
+          aria-label={`${quotaMetricLabel(metric.key, group)}: ${formatPercent(display.percentage)} used`}
         />
       ) : null}
       <PeriodSummary period={metric.period} />
@@ -465,7 +513,9 @@ function PeriodSummary({ period }: { period: ProviderQuotaPeriod | null }) {
       ? 'Weekly allowance'
       : period.kind === 'monthly'
         ? 'Monthly allowance'
-        : 'Usage period'
+        : period.kind === 'rolling'
+          ? rollingPeriodLabel(period.durationSeconds)
+          : 'Usage period'
 
   if (!period.endsAt) {
     return <span className="text-xs text-muted-foreground">{periodLabel}</span>
@@ -622,14 +672,17 @@ function syncProviderListQuota(
   )
 }
 
-function findPrimaryUsage(quota: ProviderQuota): ProviderQuotaMetric | null {
-  return (
-    quota.snapshot?.groups
-      .find((group) => group.scope === 'aggregate')
-      ?.metrics.find(
-        (metric) => metric.kind === 'usage' && metric.unit === 'percent',
-      ) ?? null
+function findPrimaryUsage(
+  quota: ProviderQuota,
+): { group: ProviderQuotaGroup; metric: ProviderQuotaMetric } | null {
+  const group = quota.snapshot?.groups.find(
+    (candidate) => candidate.scope === 'aggregate',
   )
+  const metric = group?.metrics.find(
+    (candidate) => candidate.kind === 'usage' && candidate.unit === 'percent',
+  )
+
+  return group && metric ? { group, metric } : null
 }
 
 function percentageUsed(metric: ProviderQuotaMetric): number | null {
@@ -734,7 +787,12 @@ function formatQuotaAmount(
     return currencyFormatter.format(amount / 100)
   }
 
-  return formatPercent(amount)
+  if (unit === 'percent') {
+    return formatPercent(amount)
+  }
+
+  const formatted = amountFormatter.format(amount)
+  return unit === 'credits' ? `${formatted} credits` : formatted
 }
 
 function formatPercent(value: number): string {
@@ -745,11 +803,24 @@ function clampPercentage(value: number): number {
   return Math.min(100, Math.max(0, value))
 }
 
-function quotaMetricLabel(key: string): string {
+function quotaMetricLabel(
+  key: string,
+  group?: ProviderQuotaGroup,
+): string {
+  const limitName = group?.attributes.limit_name
+  if (typeof limitName === 'string' && limitName.trim()) {
+    const windowName = key === 'primary' ? 'Primary' : key === 'secondary' ? 'Secondary' : null
+    return windowName ? `${limitName} · ${windowName}` : limitName
+  }
+
   const labels: Record<string, string> = {
     included_usage: 'Included usage',
     on_demand: 'On-demand usage',
     prepaid: 'Prepaid balance',
+    primary: 'Primary limit',
+    secondary: 'Secondary limit',
+    credits: 'Credit balance',
+    reset_credits: 'Reset credits',
   }
 
   return (
@@ -772,6 +843,91 @@ function quotaErrorMessage(error: ProviderQuotaErrorKind): string {
   }
 
   return messages[error]
+}
+
+function metricItems(groups: ProviderQuotaGroup[]) {
+  return groups.flatMap((group) =>
+    group.metrics.map((metric) => ({ group, metric })),
+  )
+}
+
+function billingAttributes(group: ProviderQuotaGroup) {
+  const values: Array<{ key: string; label: string; value: string }> = []
+  const planType = group.attributes.plan_type
+  const unlimited = group.attributes.unlimited
+  const hasCredits = group.attributes.has_credits
+  const spendReached = group.attributes.spend_control_reached
+  const spendRemainingPercent = group.attributes.spend_remaining_percent
+  const rateLimitReachedType = group.attributes.rate_limit_reached_type
+
+  if (typeof planType === 'string' && planType.trim()) {
+    values.push({
+      key: `${group.key}:plan_type`,
+      label: 'Plan',
+      value: titleCase(planType),
+    })
+  }
+  if (unlimited === true) {
+    values.push({
+      key: `${group.key}:unlimited`,
+      label: 'Credits',
+      value: 'Unlimited',
+    })
+  } else if (hasCredits === false) {
+    values.push({
+      key: `${group.key}:has_credits`,
+      label: 'Credits',
+      value: 'Unavailable',
+    })
+  }
+  if (typeof spendRemainingPercent === 'number') {
+    values.push({
+      key: `${group.key}:spend_remaining_percent`,
+      label: 'Spend available',
+      value: formatPercent(spendRemainingPercent),
+    })
+  }
+  if (spendReached === true) {
+    values.push({
+      key: `${group.key}:spend_control_reached`,
+      label: 'Spend control',
+      value: 'Reached',
+    })
+  }
+  if (typeof rateLimitReachedType === 'string' && rateLimitReachedType.trim()) {
+    values.push({
+      key: `${group.key}:rate_limit_reached_type`,
+      label: 'Rate limit',
+      value: titleCase(rateLimitReachedType),
+    })
+  }
+
+  return values
+}
+
+function rollingPeriodLabel(durationSeconds: number | null): string {
+  if (!durationSeconds) {
+    return 'Rolling allowance'
+  }
+
+  if (durationSeconds % 86_400 === 0) {
+    const days = durationSeconds / 86_400
+    return `${days}-day rolling allowance`
+  }
+
+  if (durationSeconds % 3_600 === 0) {
+    const hours = durationSeconds / 3_600
+    return `${hours}-hour rolling allowance`
+  }
+
+  const minutes = Math.max(1, Math.round(durationSeconds / 60))
+  return `${minutes}-minute rolling allowance`
+}
+
+function titleCase(value: string): string {
+  return value
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
 function formatRelativeTimestamp(timestamp: number, now: number): string {

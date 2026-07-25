@@ -26,10 +26,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { cancelProviderOAuthSession } from '@/features/providers/provider-api'
 import {
+  formatOAuthService,
+  formatProviderKind,
+} from '@/features/providers/provider-format'
+import {
   providerKeys,
   providerOAuthSessionQueryOptions,
 } from '@/features/providers/providers-query'
-import type { ProviderOAuthSession } from '@/features/providers/provider-types'
+import type {
+  OAuthProviderKind,
+  ProviderOAuthSession,
+} from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en', {
@@ -37,7 +44,13 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en', {
   timeStyle: 'short',
 })
 
-export function ProviderOAuthFlow({ sessionId }: { sessionId: string }) {
+export function ProviderOAuthFlow({
+  sessionId,
+  provider,
+}: {
+  sessionId: string
+  provider?: OAuthProviderKind
+}) {
   const navigate = useNavigate()
   const [, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
@@ -72,9 +85,19 @@ export function ProviderOAuthFlow({ sessionId }: { sessionId: string }) {
     )
   }, [navigate, queryClient, session.data])
 
+  const sessionProvider = session.data?.provider ?? provider
+  const providerName = sessionProvider
+    ? formatProviderKind(sessionProvider)
+    : 'Provider'
+  const serviceName = sessionProvider
+    ? formatOAuthService(sessionProvider)
+    : 'upstream'
+
   function startOver() {
     setSearchParams(
-      { provider: 'grok', method: 'oauth' },
+      sessionProvider
+        ? { provider: sessionProvider, method: 'oauth' }
+        : {},
       { replace: true },
     )
   }
@@ -93,10 +116,11 @@ export function ProviderOAuthFlow({ sessionId }: { sessionId: string }) {
         </Button>
         <div className="grid gap-1.5">
           <h2 className="text-xl font-semibold tracking-tight">
-            Grok authorization
+            {providerName} authorization
           </h2>
           <p className="text-sm leading-6 text-muted-foreground">
-            Complete the xAI device authorization flow to create this Provider.
+            Complete the {serviceName} device authorization flow to create this
+            Provider.
           </p>
         </div>
       </div>
@@ -108,6 +132,7 @@ export function ProviderOAuthFlow({ sessionId }: { sessionId: string }) {
       {session.data ? (
         <OAuthSessionCard
           session={session.data}
+          provider={session.data.provider}
           cancelling={cancelSession.isPending}
           cancelError={cancelSession.error}
           onCancel={() => cancelSession.mutate()}
@@ -120,12 +145,14 @@ export function ProviderOAuthFlow({ sessionId }: { sessionId: string }) {
 
 function OAuthSessionCard({
   session,
+  provider,
   cancelling,
   cancelError,
   onCancel,
   onStartOver,
 }: {
   session: ProviderOAuthSession
+  provider: OAuthProviderKind
   cancelling: boolean
   cancelError: unknown
   onCancel: () => void
@@ -190,7 +217,8 @@ function OAuthSessionCard({
         </div>
         <CardTitle>{session.label}</CardTitle>
         <CardDescription>
-          Open the xAI authorization page and enter the code below when asked.
+          Open the {formatOAuthService(provider)} authorization page and enter the
+          code below when asked.
           This page will continue automatically.
         </CardDescription>
       </CardHeader>
@@ -221,7 +249,7 @@ function OAuthSessionCard({
             <a href={authorizationUrl} target="_blank" rel="noreferrer" />
           }
         >
-          Open xAI authorization
+          Open {formatOAuthService(provider)} authorization
           <ExternalLinkIcon />
         </Button>
 

@@ -1,3 +1,4 @@
+import { isOAuthProvider } from '@/features/providers/provider-format'
 import type {
   CreatedProviderAccount,
   ProviderAccount,
@@ -23,9 +24,15 @@ import type {
 
 const providerKinds = [
   'grok',
+  'codex',
   'openai_compatible',
   'anthropic_compatible',
 ] as const satisfies readonly ProviderKind[]
+
+const oauthProviderKinds = [
+  'grok',
+  'codex',
+] as const satisfies readonly Extract<ProviderKind, 'grok' | 'codex'>[]
 
 const providerVisibilities = [
   'private',
@@ -90,11 +97,14 @@ const providerQuotaMetricKinds = [
 const providerQuotaUnits = [
   'percent',
   'usd_cents',
+  'count',
+  'credits',
 ] as const satisfies readonly ProviderQuotaUnit[]
 
 const providerQuotaPeriodKinds = [
   'weekly',
   'monthly',
+  'rolling',
   'unknown',
 ] as const satisfies readonly ProviderQuotaPeriodKind[]
 
@@ -160,7 +170,7 @@ export function decodeProviderOAuthSession(
     ),
     provider: requireEnum(
       record.provider,
-      providerKinds,
+      oauthProviderKinds,
       'OAuth session provider type',
     ),
     accountId: requireNonEmptyString(
@@ -299,6 +309,10 @@ function decodeProviderQuotaSnapshot(value: unknown) {
     accountId: requireNonEmptyString(record.account_id, 'quota account ID'),
     provider: requireEnum(record.provider, providerKinds, 'quota provider type'),
     fetchedAt: requireTimestamp(record.fetched_at, 'quota fetch time'),
+    lastObservedAt: optionalTimestamp(
+      record.last_observed_at,
+      'quota observation time',
+    ),
     groups: requireArray(record.groups, 'quota groups').map((group, index) =>
       decodeProviderQuotaGroup(group, `quota group ${index + 1}`),
     ),
@@ -319,6 +333,7 @@ function decodeProviderQuotaGroup(value: unknown, label: string) {
       providerQuotaGroupScopes,
       'quota group scope',
     ),
+    attributes: decodeQuotaAttributes(record.attributes),
     metrics: requireArray(record.metrics, 'quota metrics').map((metric, index) =>
       decodeProviderQuotaMetric(metric, `quota metric ${index + 1}`),
     ),
@@ -336,12 +351,9 @@ function decodeProviderQuotaMetric(value: unknown, label: string) {
       'quota metric kind',
     ),
     unit: requireEnum(record.unit, providerQuotaUnits, 'quota metric unit'),
-    used: optionalFiniteNumber(record.used, 'quota used amount'),
-    remaining: optionalFiniteNumber(
-      record.remaining,
-      'quota remaining amount',
-    ),
-    limit: optionalFiniteNumber(record.limit, 'quota limit amount'),
+    used: optionalQuotaAmount(record.used, 'quota used amount'),
+    remaining: optionalQuotaAmount(record.remaining, 'quota remaining amount'),
+    limit: optionalQuotaAmount(record.limit, 'quota limit amount'),
     period:
       record.period == null
         ? null
@@ -364,6 +376,10 @@ function decodeProviderQuotaPeriod(value: unknown) {
     ),
     startsAt: optionalTimestamp(record.starts_at, 'quota period start'),
     endsAt: optionalTimestamp(record.ends_at, 'quota period end'),
+    durationSeconds: optionalDurationSeconds(
+      record.duration_seconds,
+      'quota period duration',
+    ),
   }
 }
 
@@ -373,7 +389,7 @@ function decodeProviderQuotaBreakdown(value: unknown, label: string) {
   return {
     key: requireNonEmptyString(record.key, 'quota breakdown key'),
     label: requireNonEmptyString(record.label, 'quota breakdown label'),
-    used: requireFiniteNumber(record.used, 'quota breakdown used amount'),
+    used: requireQuotaAmount(record.used, 'quota breakdown used amount'),
   }
 }
 
@@ -396,7 +412,7 @@ export function decodeProviderModelCatalogSnapshot(
 function decodeBaseUrl(value: unknown, provider: ProviderKind): string | null {
   const config = requireRecord(value, 'provider config')
 
-  if (provider === 'grok') {
+  if (isOAuthProvider(provider)) {
     return null
   }
 
@@ -454,20 +470,29 @@ function optionalArray(value: unknown, label: string): unknown[] {
   return requireArray(value, label)
 }
 
-function requireFiniteNumber(value: unknown, label: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new TypeError(`${label} must be a finite number`)
+// Amounts arrive as a number or as a decimal string; both are normalized here
+// so the rest of the app only deals with numbers.
+function requireQuotaAmount(value: unknown, label: string): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
   }
 
-  return value
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value.trim())
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  throw new TypeError(`${label} must be a finite numeric amount`)
 }
 
-function optionalFiniteNumber(value: unknown, label: string): number | null {
+function optionalQuotaAmount(value: unknown, label: string): number | null {
   if (value == null) {
     return null
   }
 
-  return requireFiniteNumber(value, label)
+  return requireQuotaAmount(value, label)
 }
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -495,6 +520,31 @@ function optionalRecord(
   }
 
   return requireRecord(value, label)
+}
+
+function decodeQuotaAttributes(
+  value: unknown,
+): Record<string, string | number | boolean> {
+  if (value == null) {
+    return {}
+  }
+
+  const record = requireRecord(value, 'quota attributes')
+  const attributes: Record<string, string | number | boolean> = {}
+
+  for (const [key, attribute] of Object.entries(record)) {
+    if (
+      typeof attribute !== 'string' &&
+      typeof attribute !== 'boolean' &&
+      !(typeof attribute === 'number' && Number.isSafeInteger(attribute))
+    ) {
+      throw new TypeError(`quota attribute ${key} has an unsupported value`)
+    }
+
+    attributes[key] = attribute
+  }
+
+  return attributes
 }
 
 function requireBoolean(value: unknown, label: string): boolean {
@@ -527,4 +577,18 @@ function requirePositiveInteger(value: unknown, label: string): number {
   }
 
   return value as number
+}
+
+// Upstream reports the window length verbatim, so a zero-length window is
+// possible. It carries no more information than an absent duration.
+function optionalDurationSeconds(value: unknown, label: string): number | null {
+  if (value == null) {
+    return null
+  }
+
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new TypeError(`${label} must be a non-negative integer`)
+  }
+
+  return (value as number) > 0 ? (value as number) : null
 }

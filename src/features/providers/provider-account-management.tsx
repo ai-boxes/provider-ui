@@ -53,6 +53,7 @@ import {
   setProviderEnabled,
   updateProviderAccount,
 } from '@/features/providers/provider-api'
+import { isOAuthProvider } from '@/features/providers/provider-format'
 import { providerKeys } from '@/features/providers/providers-query'
 import type { ProviderAccount } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
@@ -157,7 +158,7 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
     () =>
       accountEditBaseSchema.superRefine((values, context) => {
         if (
-          account.provider !== 'grok' &&
+          !isOAuthProvider(account.provider) &&
           (!values.baseUrl || !isHttpUrl(values.baseUrl))
         ) {
           context.addIssue({
@@ -231,8 +232,9 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
               accountId: account.id,
               label: values.label,
               visibility: values.visibility,
-              baseUrl:
-                account.provider === 'grok' ? undefined : values.baseUrl,
+              baseUrl: isOAuthProvider(account.provider)
+                ? undefined
+                : values.baseUrl,
             }),
           )}
         >
@@ -269,7 +271,7 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
               <FieldError errors={[form.formState.errors.visibility]} />
             </Field>
 
-            {account.provider !== 'grok' ? (
+            {!isOAuthProvider(account.provider) ? (
               <Field data-invalid={Boolean(form.formState.errors.baseUrl)}>
                 <FieldLabel htmlFor="provider-edit-base-url">
                   Base URL

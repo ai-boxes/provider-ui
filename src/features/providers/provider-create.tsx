@@ -4,6 +4,7 @@ import {
   BotIcon,
   BracesIcon,
   CloudCogIcon,
+  Code2Icon,
   KeyRoundIcon,
   SparklesIcon,
 } from 'lucide-react'
@@ -13,9 +14,15 @@ import { Link, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import {
   CompatibleProviderForm,
-  GrokJsonImportForm,
-  GrokOAuthStartForm,
+  ProviderJsonImportForm,
+  ProviderOAuthStartForm,
 } from '@/features/providers/provider-create-forms'
+import {
+  formatOAuthService,
+  formatProviderKind,
+  isCompatibleProvider,
+  isOAuthProvider,
+} from '@/features/providers/provider-format'
 import { ProviderOAuthFlow } from '@/features/providers/provider-oauth-flow'
 import type { ProviderKind } from '@/features/providers/provider-types'
 import { cn } from '@/lib/utils'
@@ -26,6 +33,13 @@ const providerOptions = [
     title: 'Grok',
     description: 'Connect an xAI account with OAuth or import credential JSON.',
     icon: SparklesIcon,
+  },
+  {
+    value: 'codex',
+    title: 'Codex',
+    description:
+      'Connect an OpenAI Codex subscription with device OAuth or credential JSON.',
+    icon: Code2Icon,
   },
   {
     value: 'openai_compatible',
@@ -52,10 +66,15 @@ export function ProviderCreate() {
   const [searchParams] = useSearchParams()
   const oauthSessionId = searchParams.get('oauth_session')
   const provider = parseProviderKind(searchParams.get('provider'))
-  const grokMethod = parseGrokMethod(searchParams.get('method'))
+  const oauthMethod = parseOAuthMethod(searchParams.get('method'))
 
   if (oauthSessionId) {
-    return <ProviderOAuthFlow sessionId={oauthSessionId} />
+    return (
+      <ProviderOAuthFlow
+        sessionId={oauthSessionId}
+        provider={provider && isOAuthProvider(provider) ? provider : undefined}
+      />
+    )
   }
 
   if (!provider) {
@@ -66,7 +85,7 @@ export function ProviderCreate() {
         backTo="/providers"
         backLabel="Back to providers"
       >
-        <div className="grid gap-3 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {providerOptions.map((option) => (
             <SelectionCard
               key={option.value}
@@ -81,24 +100,27 @@ export function ProviderCreate() {
     )
   }
 
-  if (provider === 'grok' && !grokMethod) {
+  if (isOAuthProvider(provider) && !oauthMethod) {
+    const providerLabel = formatProviderKind(provider)
+    const serviceLabel = formatOAuthService(provider)
+
     return (
       <CreateStep
-        title="Connect Grok"
-        description="Use the xAI device authorization flow or import an existing credential document."
+        title={`Connect ${providerLabel}`}
+        description={`Use the ${serviceLabel} device authorization flow or import an existing credential document.`}
         backTo="/providers/new"
         backLabel="Change provider type"
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectionCard
-            href="/providers/new?provider=grok&method=oauth"
+            href={`/providers/new?provider=${provider}&method=oauth`}
             title="Connect with OAuth"
-            description="Authorize this application with an xAI device code. Recommended for new accounts."
+            description={`Authorize this application with an ${serviceLabel} device code. Recommended for new accounts.`}
             icon={KeyRoundIcon}
             recommended
           />
           <SelectionCard
-            href="/providers/new?provider=grok&method=json"
+            href={`/providers/new?provider=${provider}&method=json`}
             title="Import credential JSON"
             description="Paste a credential document or load a local JSON file into an editable field."
             icon={BracesIcon}
@@ -108,30 +130,30 @@ export function ProviderCreate() {
     )
   }
 
-  if (provider === 'grok' && grokMethod === 'oauth') {
+  if (isOAuthProvider(provider) && oauthMethod === 'oauth') {
     return (
       <CreateStep
-        title="Connect Grok with OAuth"
+        title={`Connect ${formatProviderKind(provider)} with OAuth`}
         description="Name the provider account and choose who can use it before starting authorization."
-        backTo="/providers/new?provider=grok"
+        backTo={`/providers/new?provider=${provider}`}
         backLabel="Change connection method"
         narrow
       >
-        <GrokOAuthStartForm />
+        <ProviderOAuthStartForm provider={provider} />
       </CreateStep>
     )
   }
 
-  if (provider === 'grok' && grokMethod === 'json') {
+  if (isOAuthProvider(provider) && oauthMethod === 'json') {
     return (
       <CreateStep
-        title="Import Grok credential JSON"
+        title={`Import ${formatProviderKind(provider)} credential JSON`}
         description="Paste the credential document or load it from a local file, then review the editable content before creating the account."
-        backTo="/providers/new?provider=grok"
+        backTo={`/providers/new?provider=${provider}`}
         backLabel="Change connection method"
         narrow
       >
-        <GrokJsonImportForm />
+        <ProviderJsonImportForm provider={provider} />
       </CreateStep>
     )
   }
@@ -238,26 +260,13 @@ function SelectionCard({
 
 function parseProviderKind(value: string | null): ProviderKind | null {
   return value === 'grok' ||
+    value === 'codex' ||
     value === 'openai_compatible' ||
     value === 'anthropic_compatible'
     ? value
     : null
 }
 
-function parseGrokMethod(value: string | null): 'oauth' | 'json' | null {
+function parseOAuthMethod(value: string | null): 'oauth' | 'json' | null {
   return value === 'oauth' || value === 'json' ? value : null
-}
-
-function isCompatibleProvider(
-  provider: ProviderKind,
-): provider is Exclude<ProviderKind, 'grok'> {
-  return (
-    provider === 'openai_compatible' || provider === 'anthropic_compatible'
-  )
-}
-
-function formatProviderKind(provider: Exclude<ProviderKind, 'grok'>): string {
-  return provider === 'openai_compatible'
-    ? 'OpenAI-compatible'
-    : 'Anthropic-compatible'
 }

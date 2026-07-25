@@ -35,13 +35,14 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   createCompatibleProvider,
-  importGrokProvider,
-  startGrokOAuth,
+  importOAuthProvider,
+  startProviderOAuth,
 } from '@/features/providers/provider-api'
 import { providerKeys } from '@/features/providers/providers-query'
 import type {
+  CompatibleProviderKind,
   CreatedProviderAccount,
-  ProviderKind,
+  OAuthProviderKind,
 } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
 
@@ -59,7 +60,7 @@ const compatibleProviderSchema = providerBaseSchema.extend({
   apiKey: z.string().transform((value) => value.trim()),
 })
 
-const grokJsonImportSchema = providerBaseSchema.extend({
+const credentialJsonImportSchema = providerBaseSchema.extend({
   credentialJson: z
     .string()
     .trim()
@@ -89,23 +90,32 @@ const grokJsonImportSchema = providerBaseSchema.extend({
 
 type ProviderBaseValues = z.infer<typeof providerBaseSchema>
 type CompatibleProviderValues = z.infer<typeof compatibleProviderSchema>
-type GrokJsonImportValues = z.infer<typeof grokJsonImportSchema>
+type CredentialJsonImportValues = z.infer<
+  typeof credentialJsonImportSchema
+>
 
 const defaultBaseValues: ProviderBaseValues = {
   label: '',
   visibility: 'private',
 }
 
-export function GrokOAuthStartForm() {
+export function ProviderOAuthStartForm({
+  provider,
+}: {
+  provider: OAuthProviderKind
+}) {
   const [, setSearchParams] = useSearchParams()
   const form = useForm<ProviderBaseValues>({
     resolver: zodResolver(providerBaseSchema),
     defaultValues: defaultBaseValues,
   })
   const startOAuth = useMutation({
-    mutationFn: startGrokOAuth,
+    mutationFn: startProviderOAuth,
     onSuccess: (session) => {
-      setSearchParams({ oauth_session: session.id }, { replace: true })
+      setSearchParams(
+        { provider, oauth_session: session.id },
+        { replace: true },
+      )
     },
   })
 
@@ -117,7 +127,7 @@ export function GrokOAuthStartForm() {
       footer={
         <Button
           type="submit"
-          form="grok-oauth-form"
+          form="provider-oauth-form"
           disabled={startOAuth.isPending}
         >
           {startOAuth.isPending ? <Loader2Icon className="animate-spin" /> : null}
@@ -126,8 +136,10 @@ export function GrokOAuthStartForm() {
       }
     >
       <form
-        id="grok-oauth-form"
-        onSubmit={form.handleSubmit((values) => startOAuth.mutate(values))}
+        id="provider-oauth-form"
+        onSubmit={form.handleSubmit((values) =>
+          startOAuth.mutate({ ...values, provider }),
+        )}
       >
         <FieldGroup>
           <ProviderBaseFields
@@ -143,18 +155,22 @@ export function GrokOAuthStartForm() {
   )
 }
 
-export function GrokJsonImportForm() {
+export function ProviderJsonImportForm({
+  provider,
+}: {
+  provider: OAuthProviderKind
+}) {
   const finishCreation = useFinishProviderCreation()
   const [fileError, setFileError] = useState<string | null>(null)
-  const form = useForm<GrokJsonImportValues>({
-    resolver: zodResolver(grokJsonImportSchema),
+  const form = useForm<CredentialJsonImportValues>({
+    resolver: zodResolver(credentialJsonImportSchema),
     defaultValues: {
       ...defaultBaseValues,
       credentialJson: '',
     },
   })
   const importProvider = useMutation({
-    mutationFn: importGrokProvider,
+    mutationFn: importOAuthProvider,
     onSuccess: finishCreation,
   })
 
@@ -187,7 +203,7 @@ export function GrokJsonImportForm() {
       footer={
         <Button
           type="submit"
-          form="grok-json-form"
+          form="provider-json-form"
           disabled={importProvider.isPending}
         >
           {importProvider.isPending ? (
@@ -198,9 +214,10 @@ export function GrokJsonImportForm() {
       }
     >
       <form
-        id="grok-json-form"
+        id="provider-json-form"
         onSubmit={form.handleSubmit((values) => {
           importProvider.mutate({
+            provider,
             label: values.label,
             visibility: values.visibility,
             credentialJson: JSON.parse(values.credentialJson) as Record<
@@ -258,7 +275,11 @@ export function GrokJsonImportForm() {
               rows={14}
               spellCheck={false}
               className="min-h-72 resize-y font-mono text-xs leading-5"
-              placeholder={'{\n  "type": "xai",\n  ...\n}'}
+              placeholder={
+                provider === 'grok'
+                  ? '{\n  "type": "xai",\n  ...\n}'
+                  : '{\n  "type": "codex",\n  "auth_kind": "oauth",\n  ...\n}'
+              }
               disabled={importProvider.isPending}
               aria-invalid={Boolean(form.formState.errors.credentialJson)}
               {...form.register('credentialJson')}
@@ -279,7 +300,7 @@ export function GrokJsonImportForm() {
 export function CompatibleProviderForm({
   provider,
 }: {
-  provider: Exclude<ProviderKind, 'grok'>
+  provider: CompatibleProviderKind
 }) {
   const finishCreation = useFinishProviderCreation()
   const form = useForm<CompatibleProviderValues>({

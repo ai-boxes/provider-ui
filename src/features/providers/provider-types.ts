@@ -1,5 +1,6 @@
 export type ProviderKind =
   | 'grok'
+  | 'codex'
   | 'openai_compatible'
   | 'anthropic_compatible'
 
@@ -52,14 +53,25 @@ export type ProviderQuotaGroupScope = 'aggregate' | 'product' | 'billing'
 
 export type ProviderQuotaMetricKind = 'usage' | 'balance'
 
-export type ProviderQuotaUnit = 'percent' | 'usd_cents'
+export type ProviderQuotaUnit =
+  | 'percent'
+  | 'usd_cents'
+  | 'count'
+  | 'credits'
 
-export type ProviderQuotaPeriodKind = 'weekly' | 'monthly' | 'unknown'
+export type ProviderQuotaPeriodKind =
+  | 'weekly'
+  | 'monthly'
+  | 'rolling'
+  | 'unknown'
+
+export type ProviderQuotaScalar = string | number | boolean
 
 export type ProviderQuotaPeriod = {
   kind: ProviderQuotaPeriodKind
   startsAt: number | null
   endsAt: number | null
+  durationSeconds: number | null
 }
 
 export type ProviderQuotaBreakdown = {
@@ -82,6 +94,7 @@ export type ProviderQuotaMetric = {
 export type ProviderQuotaGroup = {
   key: string
   scope: ProviderQuotaGroupScope
+  attributes: Record<string, ProviderQuotaScalar>
   metrics: ProviderQuotaMetric[]
 }
 
@@ -89,6 +102,7 @@ export type ProviderQuotaSnapshot = {
   accountId: string
   provider: ProviderKind
   fetchedAt: number
+  lastObservedAt: number | null
   groups: ProviderQuotaGroup[]
   warnings: string[]
 }
@@ -129,11 +143,15 @@ export type CreatedProviderAccount = {
   models: ProviderModelCatalogSnapshot
 }
 
+export type OAuthProviderKind = Extract<ProviderKind, 'grok' | 'codex'>
+
+export type CompatibleProviderKind = Exclude<ProviderKind, OAuthProviderKind>
+
 export type ProviderOAuthSession = {
   id: string
   ownerUserId: string
   visibility: ProviderVisibility
-  provider: ProviderKind
+  provider: OAuthProviderKind
   accountId: string
   label: string
   status: ProviderOAuthStatus
@@ -153,16 +171,19 @@ export type CreateProviderBaseInput = {
 }
 
 export type CreateCompatibleProviderInput = CreateProviderBaseInput & {
-  provider: Exclude<ProviderKind, 'grok'>
+  provider: CompatibleProviderKind
   baseUrl: string
   apiKey?: string
 }
 
-export type ImportGrokProviderInput = CreateProviderBaseInput & {
+export type ImportOAuthProviderInput = CreateProviderBaseInput & {
+  provider: OAuthProviderKind
   credentialJson: Record<string, unknown>
 }
 
-export type StartGrokOAuthInput = CreateProviderBaseInput
+export type StartProviderOAuthInput = CreateProviderBaseInput & {
+  provider: OAuthProviderKind
+}
 
 export type UpdateProviderAccountInput = {
   accountId: string

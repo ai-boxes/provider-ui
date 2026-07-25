@@ -14,7 +14,7 @@ import {
 import type {
   CreateCompatibleProviderInput,
   CreatedProviderAccount,
-  ImportGrokProviderInput,
+  ImportOAuthProviderInput,
   ProviderAccount,
   ProviderAccountWithQuota,
   ProviderModel,
@@ -22,7 +22,7 @@ import type {
   ProviderOAuthSession,
   ProviderQuota,
   SetProviderEnabledInput,
-  StartGrokOAuthInput,
+  StartProviderOAuthInput,
   UpdateProviderAccountInput,
   UpdateProviderModelInput,
 } from '@/features/providers/provider-types'
@@ -88,8 +88,8 @@ export function createCompatibleProvider(
   )
 }
 
-export function importGrokProvider(
-  input: ImportGrokProviderInput,
+export function importOAuthProvider(
+  input: ImportOAuthProviderInput,
 ): Promise<CreatedProviderAccount> {
   return requestAuthenticatedData(
     '/api/v1/providers',
@@ -99,7 +99,7 @@ export function importGrokProvider(
       headers: jsonHeaders,
       body: JSON.stringify({
         method: 'credential_json',
-        provider: 'grok',
+        provider: input.provider,
         label: input.label,
         credential_json: input.credentialJson,
         visibility: input.visibility,
@@ -108,8 +108,8 @@ export function importGrokProvider(
   )
 }
 
-export function startGrokOAuth(
-  input: StartGrokOAuthInput,
+export function startProviderOAuth(
+  input: StartProviderOAuthInput,
 ): Promise<ProviderOAuthSession> {
   return requestAuthenticatedData(
     '/api/v1/oauth/sessions',
@@ -118,7 +118,7 @@ export function startGrokOAuth(
       method: 'POST',
       headers: jsonHeaders,
       body: JSON.stringify({
-        provider: 'grok',
+        provider: input.provider,
         label: input.label,
         visibility: input.visibility,
       }),

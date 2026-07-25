@@ -50,6 +50,7 @@ import {
   ProviderModelEditDialog,
   ProviderModelRefreshControl,
 } from '@/features/providers/provider-model-management'
+import { formatProviderKind } from '@/features/providers/provider-format'
 import { ProviderQuotaCard } from '@/features/providers/provider-quota'
 import {
   providerModelsQueryOptions,
@@ -58,7 +59,6 @@ import {
 import type {
   ProviderAccount,
   ProviderCredentialKind,
-  ProviderKind,
   ProviderModel,
 } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
@@ -579,16 +579,6 @@ function ModelsEmpty() {
       </EmptyHeader>
     </Empty>
   )
-}
-
-function formatProviderKind(provider: ProviderKind): string {
-  const labels: Record<ProviderKind, string> = {
-    grok: 'Grok',
-    openai_compatible: 'OpenAI-compatible',
-    anthropic_compatible: 'Anthropic-compatible',
-  }
-
-  return labels[provider]
 }
 
 function formatCredentialKind(kind: ProviderCredentialKind): string {

@@ -35,13 +35,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatProviderKind } from '@/features/providers/provider-format'
 import { ProviderQuotaSummary } from '@/features/providers/provider-quota'
 import { providersQueryOptions } from '@/features/providers/providers-query'
 import type {
   ProviderAccount,
   ProviderAccountWithQuota,
   ProviderCredentialKind,
-  ProviderKind,
 } from '@/features/providers/provider-types'
 import { cn } from '@/lib/utils'
 
@@ -444,16 +444,6 @@ function getProviderStatus(account: ProviderAccount): {
     className:
       'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300',
   }
-}
-
-function formatProviderKind(provider: ProviderKind): string {
-  const labels: Record<ProviderKind, string> = {
-    grok: 'Grok',
-    openai_compatible: 'OpenAI-compatible',
-    anthropic_compatible: 'Anthropic-compatible',
-  }
-
-  return labels[provider]
 }
 
 function formatCredentialKind(kind: ProviderCredentialKind): string {
