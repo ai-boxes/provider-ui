@@ -132,7 +132,6 @@ export function ProviderOAuthFlow({
       {session.data ? (
         <OAuthSessionCard
           session={session.data}
-          provider={session.data.provider}
           cancelling={cancelSession.isPending}
           cancelError={cancelSession.error}
           onCancel={() => cancelSession.mutate()}
@@ -145,14 +144,12 @@ export function ProviderOAuthFlow({
 
 function OAuthSessionCard({
   session,
-  provider,
   cancelling,
   cancelError,
   onCancel,
   onStartOver,
 }: {
   session: ProviderOAuthSession
-  provider: OAuthProviderKind
   cancelling: boolean
   cancelError: unknown
   onCancel: () => void
@@ -217,9 +214,9 @@ function OAuthSessionCard({
         </div>
         <CardTitle>{session.label}</CardTitle>
         <CardDescription>
-          Open the {formatOAuthService(provider)} authorization page and enter the
-          code below when asked.
-          This page will continue automatically.
+          Open the {formatOAuthService(session.provider)} authorization page and
+          enter the code below when asked. This page will continue
+          automatically.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5">
@@ -249,7 +246,7 @@ function OAuthSessionCard({
             <a href={authorizationUrl} target="_blank" rel="noreferrer" />
           }
         >
-          Open {formatOAuthService(provider)} authorization
+          Open {formatOAuthService(session.provider)} authorization
           <ExternalLinkIcon />
         </Button>
 
