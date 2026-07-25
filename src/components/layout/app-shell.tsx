@@ -195,6 +195,7 @@ function NavigationMenu({
 }
 
 function UserMenu({ user }: { user: AuthUser }) {
+  const { isMobile } = useSidebar()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   async function handleLogout() {
@@ -219,8 +220,7 @@ function UserMenu({ user }: { user: AuthUser }) {
             render={
               <SidebarMenuButton
                 size="lg"
-                tooltip={user.username}
-                className="data-open:bg-sidebar-accent"
+                className="data-open:bg-sidebar-accent data-popup-open:bg-sidebar-accent"
               />
             }
           >
@@ -238,10 +238,10 @@ function UserMenu({ user }: { user: AuthUser }) {
             <ChevronsUpDownIcon className="ml-auto size-4 text-sidebar-foreground/60" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            side="top"
-            align="start"
+            side={isMobile ? 'bottom' : 'top'}
+            align="end"
             sideOffset={8}
-            className="min-w-56"
+            className="w-56 min-w-56"
           >
             <DropdownMenuLabel className="p-2 font-normal">
               <div className="flex items-center gap-2">
@@ -261,7 +261,10 @@ function UserMenu({ user }: { user: AuthUser }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled={isLoggingOut} onClick={handleLogout}>
+            <DropdownMenuItem
+              disabled={isLoggingOut}
+              onClick={() => void handleLogout()}
+            >
               <LogOutIcon />
               {isLoggingOut ? 'Logging out…' : 'Log out'}
             </DropdownMenuItem>
