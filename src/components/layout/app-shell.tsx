@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   BoxesIcon,
+  ChartNoAxesColumnIcon,
   ChevronsUpDownIcon,
   KeyRoundIcon,
   LogOutIcon,
@@ -49,6 +50,11 @@ const primaryNavigation = [
     label: 'API Keys',
     href: '/api-keys',
     icon: KeyRoundIcon,
+  },
+  {
+    label: 'Usage',
+    href: '/usage',
+    icon: ChartNoAxesColumnIcon,
   },
 ] as const
 

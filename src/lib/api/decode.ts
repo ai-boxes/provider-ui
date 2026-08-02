@@ -110,3 +110,14 @@ export function requirePositiveInteger(value: unknown, label: string): number {
 
   return value as number
 }
+
+export function requireNonNegativeInteger(
+  value: unknown,
+  label: string,
+): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new TypeError(`${label} must be a non-negative integer`)
+  }
+
+  return value as number
+}
