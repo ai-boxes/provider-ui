@@ -117,10 +117,11 @@ function UsageWindowSelector({
 }
 
 function UsageSummary({ overview }: { overview: UsageOverviewData }) {
-  // The overview always answers; "empty" means nothing was recorded in the
-  // window, which is a different claim from an absent response.
+  // The overview always answers; "empty" means no usage data was recorded in
+  // the window. A tracking gap makes that different from claiming no usage
+  // happened, so the empty state has to preserve that warning.
   if (overview.logicalRequests === 0 && overview.attempts === 0) {
-    return <UsageEmpty />
+    return <UsageEmpty hasTrackingGaps={overview.trackingGaps > 0} />
   }
 
   const { cost, tokens, cache } = overview
@@ -205,7 +206,7 @@ function UsageStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function UsageEmpty() {
+function UsageEmpty({ hasTrackingGaps }: { hasTrackingGaps: boolean }) {
   return (
     <Card className="min-h-80 justify-center">
       <Empty className="border-0">
@@ -213,9 +214,11 @@ function UsageEmpty() {
           <EmptyMedia variant="icon" className="size-10 rounded-xl">
             <ChartNoAxesColumnIcon />
           </EmptyMedia>
-          <EmptyTitle>No usage recorded</EmptyTitle>
+          <EmptyTitle>No usage data recorded</EmptyTitle>
           <EmptyDescription>
-            Nothing was recorded in this window. Try a longer one.
+            {hasTrackingGaps
+              ? 'Some usage could not be recorded, so this window may not be empty.'
+              : 'Nothing was recorded in this window. Try a longer one.'}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
