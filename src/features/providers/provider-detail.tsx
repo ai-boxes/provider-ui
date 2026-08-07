@@ -37,6 +37,11 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -319,7 +324,7 @@ function ModelsTable({
         : models,
     [models, normalizedQuery],
   )
-  const pageSize = 25
+  const pageSize = 15
   const pageCount = Math.max(1, Math.ceil(filteredModels.length / pageSize))
   const currentPage = Math.min(pageIndex, pageCount - 1)
   const visibleModels = filteredModels.slice(
@@ -366,6 +371,7 @@ function ModelsTable({
                 <TableRow className="bg-muted/35 hover:bg-muted/35">
                   <TableHead className="pl-4">Model</TableHead>
                   <TableHead>Upstream</TableHead>
+                  <TableHead>Pricing</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="pr-4 text-right">Last seen</TableHead>
                   {canManage ? (
@@ -393,6 +399,9 @@ function ModelsTable({
                         {model.upstreamModel}
                       </code>
                     </TableCell>
+                    <TableCell className="max-w-64">
+                      <ModelPricingSummary model={model} />
+                    </TableCell>
                     <TableCell>
                       <ModelStatusBadge model={model} />
                     </TableCell>
@@ -403,10 +412,12 @@ function ModelsTable({
                     </TableCell>
                     {canManage ? (
                       <TableCell className="pr-4 text-right">
-                        <ProviderModelEditDialog
-                          accountId={accountId}
-                          model={model}
-                        />
+                        <div className="flex justify-end gap-2">
+                          <ProviderModelEditDialog
+                            accountId={accountId}
+                            model={model}
+                          />
+                        </div>
                       </TableCell>
                     ) : null}
                   </TableRow>
@@ -436,8 +447,11 @@ function ModelsTable({
                     ? formatTimestamp(model.lastSeenAt)
                     : 'never'}
                 </span>
+                <ModelPricingSummary model={model} />
                 {canManage ? (
-                  <ProviderModelEditDialog accountId={accountId} model={model} />
+                  <div className="flex items-center gap-2">
+                    <ProviderModelEditDialog accountId={accountId} model={model} />
+                  </div>
                 ) : null}
               </div>
             ))}
@@ -482,6 +496,132 @@ function ModelsTable({
       )}
     </>
   )
+}
+
+function ModelPricingSummary({ model }: { model: ProviderModel }) {
+  const pricing = model.pricing
+  if (!pricing) {
+    return <span className="text-xs text-muted-foreground">Not configured</span>
+  }
+  const summary = <PricingComponents pricing={pricing} />
+
+  if (pricing.tiers.length === 0) {
+    return summary
+  }
+
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        render={
+          <button
+            type="button"
+            className="rounded-md text-left outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-label={`Pricing tiers for ${model.upstreamModel}`}
+          />
+        }
+      >
+        {summary}
+      </HoverCardTrigger>
+      <HoverCardContent side="top" align="start" className="w-72 p-3">
+        <p className="text-xs font-semibold text-foreground">Pricing tiers</p>
+        <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
+          USD per 1M tokens
+        </p>
+        <PricingTier label="Base" pricing={pricing} />
+        {pricing.tiers.map((tier) => (
+          <PricingTier
+            key={tier.thresholdTokens}
+            label={`Above ${formatTokenThreshold(tier.thresholdTokens)} context tokens`}
+            pricing={tier}
+          />
+        ))}
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
+type PriceComponents = Pick<
+  NonNullable<ProviderModel['pricing']>,
+  | 'input'
+  | 'output'
+  | 'cacheRead'
+  | 'cacheWrite'
+  | 'reasoning'
+  | 'inputAudio'
+  | 'outputAudio'
+>
+
+function PricingComponents({ pricing }: { pricing: PriceComponents }) {
+  const components = pricingComponents(pricing)
+
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+      {components.map(([label, value]) => (
+        <span key={label} className="whitespace-nowrap text-muted-foreground">
+          {label}{' '}
+          <span className="font-medium tabular-nums text-foreground">
+            ${trimPrice(value)}
+          </span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function PricingTier({
+  label,
+  pricing,
+}: {
+  label: string
+  pricing: PriceComponents
+}) {
+  const components = pricingComponents(pricing)
+
+  return (
+    <div className="mt-2 border-t pt-2">
+      <p className="mb-1.5 text-[0.7rem] font-medium text-foreground">{label}</p>
+      <div className="grid gap-1">
+        {components.map(([component, value]) => (
+          <div
+            key={component}
+            className="flex items-baseline justify-between gap-4 text-xs"
+          >
+            <span className="text-muted-foreground">{component}</span>
+            <span className="font-medium tabular-nums text-foreground">
+              ${trimPrice(value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function pricingComponents(pricing: PriceComponents): [string, string][] {
+  return [
+    ['Input', pricing.input],
+    ['Output', pricing.output],
+    ['Cache read', pricing.cacheRead],
+    ['Cache write', pricing.cacheWrite],
+    ['Reasoning', pricing.reasoning],
+    ['Input audio', pricing.inputAudio],
+    ['Output audio', pricing.outputAudio],
+  ].filter((entry): entry is [string, string] => entry[1] !== null)
+}
+
+function formatTokenThreshold(value: number): string {
+  if (value >= 1_000_000 && value % 1_000_000 === 0) {
+    return `${value / 1_000_000}M`
+  }
+  if (value >= 1_000 && value % 1_000 === 0) {
+    return `${value / 1_000}K`
+  }
+  return new Intl.NumberFormat('en-US').format(value)
+}
+
+function trimPrice(value: string): string {
+  if (!value.includes('.')) return value
+  return value.replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function DetailField({

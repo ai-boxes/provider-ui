@@ -28,6 +28,8 @@ import type {
   ProviderCredentialKind,
   ProviderKind,
   ProviderModel,
+  ProviderModelPricing,
+  ProviderModelPricingTier,
   ProviderModelCatalogSnapshot,
   ProviderModelCatalogSource,
   ProviderOAuthSession,
@@ -308,9 +310,49 @@ function decodeProviderModel(value: unknown, label: string): ProviderModel {
     available: requireBoolean(record.available, 'model availability'),
     routable: requireBoolean(record.routable, 'model routable state'),
     metadata: optionalRecord(record.metadata, 'model metadata'),
+    pricing: decodeProviderModelPricing(record.pricing),
     lastSeenAt: optionalTimestamp(record.last_seen_at, 'model last seen time'),
     createdAt: requireTimestamp(record.created_at, 'model creation time'),
     updatedAt: requireTimestamp(record.updated_at, 'model update time'),
+  }
+}
+
+function decodeProviderModelPricing(value: unknown): ProviderModelPricing | null {
+  if (value === null) {
+    return null
+  }
+  const record = requireRecord(value, 'model pricing')
+  return {
+    input: optionalString(record.input, 'model input price'),
+    output: optionalString(record.output, 'model output price'),
+    cacheRead: optionalString(record.cache_read, 'model cache read price'),
+    cacheWrite: optionalString(record.cache_write, 'model cache write price'),
+    reasoning: optionalString(record.reasoning, 'model reasoning price'),
+    inputAudio: optionalString(record.input_audio, 'model input audio price'),
+    outputAudio: optionalString(record.output_audio, 'model output audio price'),
+    tiers: requireArray(record.tiers, 'model pricing tiers').map((tier, index) =>
+      decodeProviderModelPricingTier(tier, `model pricing tier ${index + 1}`),
+    ),
+  }
+}
+
+function decodeProviderModelPricingTier(
+  value: unknown,
+  label: string,
+): ProviderModelPricingTier {
+  const record = requireRecord(value, label)
+  return {
+    thresholdTokens: requireNonNegativeInteger(
+      record.threshold_tokens,
+      `${label} threshold`,
+    ),
+    input: optionalString(record.input, `${label} input price`),
+    output: optionalString(record.output, `${label} output price`),
+    cacheRead: optionalString(record.cache_read, `${label} cache read price`),
+    cacheWrite: optionalString(record.cache_write, `${label} cache write price`),
+    reasoning: optionalString(record.reasoning, `${label} reasoning price`),
+    inputAudio: optionalString(record.input_audio, `${label} input audio price`),
+    outputAudio: optionalString(record.output_audio, `${label} output audio price`),
   }
 }
 

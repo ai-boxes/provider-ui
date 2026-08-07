@@ -36,15 +36,43 @@ import {
   updateProviderModel,
 } from '@/features/providers/provider-api'
 import { providerKeys } from '@/features/providers/providers-query'
-import type { ProviderModel } from '@/features/providers/provider-types'
+import type {
+  ProviderModel,
+  ProviderModelPricing,
+} from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
+
+const decimalPriceSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === '' || /^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(value),
+    'Enter a non-negative decimal with up to 8 decimal places.',
+  )
 
 const modelEditSchema = z.object({
   alias: z.string().transform((value) => value.trim()),
   enabled: z.boolean(),
+  input: decimalPriceSchema,
+  output: decimalPriceSchema,
+  cacheRead: decimalPriceSchema,
+  cacheWrite: decimalPriceSchema,
+  reasoning: decimalPriceSchema,
+  inputAudio: decimalPriceSchema,
+  outputAudio: decimalPriceSchema,
 })
 
 type ModelEditValues = z.infer<typeof modelEditSchema>
+
+const priceFields = [
+  ['input', 'Input'],
+  ['output', 'Output'],
+  ['cacheRead', 'Cache read'],
+  ['cacheWrite', 'Cache write'],
+  ['reasoning', 'Reasoning'],
+  ['inputAudio', 'Input audio'],
+  ['outputAudio', 'Output audio'],
+] as const satisfies ReadonlyArray<readonly [keyof ModelEditValues, string]>
 
 export function ProviderModelRefreshControl({
   accountId,
@@ -134,11 +162,11 @@ export function ProviderModelEditDialog({
         <PencilIcon />
         Edit
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Model</DialogTitle>
           <DialogDescription>
-            Set the client-facing alias and whether this model can be routed.
+            Set the alias, routing status, and pricing in USD per 1M tokens.
           </DialogDescription>
         </DialogHeader>
 
@@ -156,14 +184,19 @@ export function ProviderModelEditDialog({
 
         <form
           id={`model-edit-form-${id}`}
-          onSubmit={form.handleSubmit((values) =>
+          onSubmit={form.handleSubmit((values) => {
+            const pricing = pricingFromValues(values)
+            const pricingChanged = !basePricingEquals(pricing, model.pricing)
+
             updateModel.mutate({
               accountId,
               upstreamModel: model.upstreamModel,
               alias: values.alias || undefined,
               enabled: values.enabled,
-            }),
-          )}
+              pricingChanged,
+              pricing,
+            })
+          })}
         >
           <FieldGroup>
             <Field>
@@ -214,6 +247,35 @@ export function ProviderModelEditDialog({
                 />
               </div>
             </Field>
+
+            <div className="grid gap-1">
+              <p className="text-sm font-medium">Pricing</p>
+              <p className="text-xs text-muted-foreground">
+                USD per 1M tokens. Empty fields are not priced.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {priceFields.map(([name, label]) => (
+                <Field
+                  key={name}
+                  data-invalid={Boolean(form.formState.errors[name])}
+                >
+                  <FieldLabel htmlFor={`model-price-${name}-${id}`}>
+                    {label}
+                  </FieldLabel>
+                  <Input
+                    id={`model-price-${name}-${id}`}
+                    inputMode="decimal"
+                    placeholder="Not set"
+                    disabled={updateModel.isPending}
+                    aria-invalid={Boolean(form.formState.errors[name])}
+                    {...form.register(name)}
+                  />
+                  <FieldError errors={[form.formState.errors[name]]} />
+                </Field>
+              ))}
+            </div>
           </FieldGroup>
         </form>
 
@@ -241,7 +303,53 @@ function modelDefaultValues(model: ProviderModel): ModelEditValues {
   return {
     alias: model.alias ?? '',
     enabled: model.enabled,
+    input: model.pricing?.input ?? '',
+    output: model.pricing?.output ?? '',
+    cacheRead: model.pricing?.cacheRead ?? '',
+    cacheWrite: model.pricing?.cacheWrite ?? '',
+    reasoning: model.pricing?.reasoning ?? '',
+    inputAudio: model.pricing?.inputAudio ?? '',
+    outputAudio: model.pricing?.outputAudio ?? '',
   }
+}
+
+function pricingFromValues(values: ModelEditValues): ProviderModelPricing | null {
+  const optional = (value: string) => value || null
+  const pricing: ProviderModelPricing = {
+    input: optional(values.input),
+    output: optional(values.output),
+    cacheRead: optional(values.cacheRead),
+    cacheWrite: optional(values.cacheWrite),
+    reasoning: optional(values.reasoning),
+    inputAudio: optional(values.inputAudio),
+    outputAudio: optional(values.outputAudio),
+    tiers: [],
+  }
+
+  return basePriceValues(pricing).some((value) => value !== null)
+    ? pricing
+    : null
+}
+
+function basePricingEquals(
+  next: ProviderModelPricing | null,
+  current: ProviderModelPricing | null,
+): boolean {
+  return basePriceValues(next).every(
+    (value, index) => value === basePriceValues(current)[index],
+  )
+}
+
+function basePriceValues(pricing: ProviderModelPricing | null) {
+  return [
+    pricing?.input ?? null,
+    pricing?.output ?? null,
+    pricing?.cacheRead ?? null,
+    pricing?.cacheWrite ?? null,
+    pricing?.reasoning ?? null,
+    pricing?.inputAudio ?? null,
+    pricing?.outputAudio ?? null,
+  ]
 }
 
 function formatRefreshFeedback(

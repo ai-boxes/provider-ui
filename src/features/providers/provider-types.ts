@@ -140,9 +140,32 @@ export type ProviderModel = {
   available: boolean
   routable: boolean
   metadata: Record<string, unknown> | null
+  pricing: ProviderModelPricing | null
   lastSeenAt: number | null
   createdAt: number
   updatedAt: number
+}
+
+export type ProviderModelPricing = {
+  input: string | null
+  output: string | null
+  cacheRead: string | null
+  cacheWrite: string | null
+  reasoning: string | null
+  inputAudio: string | null
+  outputAudio: string | null
+  tiers: ProviderModelPricingTier[]
+}
+
+export type ProviderModelPricingTier = {
+  thresholdTokens: number
+  input: string | null
+  output: string | null
+  cacheRead: string | null
+  cacheWrite: string | null
+  reasoning: string | null
+  inputAudio: string | null
+  outputAudio: string | null
 }
 
 export type ProviderModelCatalogSnapshot = {
@@ -219,4 +242,6 @@ export type UpdateProviderModelInput = {
   upstreamModel: string
   alias?: string
   enabled: boolean
+  pricingChanged: boolean
+  pricing: ProviderModelPricing | null
 }

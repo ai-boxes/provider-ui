@@ -222,6 +222,22 @@ export function updateProviderModel(
         upstream_model: input.upstreamModel,
         alias: input.alias,
         enabled: input.enabled,
+        pricing_changed: input.pricingChanged,
+        ...(input.pricingChanged
+          ? {
+              pricing: input.pricing
+                ? {
+                    input: input.pricing.input,
+                    output: input.pricing.output,
+                    cache_read: input.pricing.cacheRead,
+                    cache_write: input.pricing.cacheWrite,
+                    reasoning: input.pricing.reasoning,
+                    input_audio: input.pricing.inputAudio,
+                    output_audio: input.pricing.outputAudio,
+                  }
+                : null,
+            }
+          : {}),
       }),
     },
   )
