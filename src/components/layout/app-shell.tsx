@@ -69,19 +69,19 @@ export function AppShell() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
-        <header className="z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background/90 px-4 backdrop-blur-sm sm:px-6">
+      <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-background">
+        <header className="z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/85 px-4 backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="h-4" />
-            <h1 className="truncate text-sm font-semibold tracking-tight">
+            <span className="truncate text-sm font-medium text-muted-foreground">
               {getPageTitle(location.pathname)}
-            </h1>
+            </span>
           </div>
           <UserMenu user={authState.session.user} />
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <div className="mx-auto flex w-full max-w-7xl flex-col pb-8">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+          <div className="mx-auto flex w-full max-w-7xl flex-col pb-10">
             <Outlet />
           </div>
         </div>
@@ -100,8 +100,8 @@ function AppSidebar() {
   }
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader className="pt-3">
+    <Sidebar variant="inset" collapsible="icon" className="border-r border-sidebar-border/70">
+      <SidebarHeader className="pt-4">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -110,11 +110,11 @@ function AppSidebar() {
               render={<NavLink to="/providers" onClick={closeMobileSidebar} />}
               className="hover:bg-transparent active:bg-transparent"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-xs">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm shadow-sidebar-primary/20">
                 <BoxesIcon className="size-4" />
               </span>
               <span className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-semibold">Provider</span>
+                <span className="truncate font-semibold tracking-tight">Provider</span>
                 <span className="truncate text-xs text-sidebar-foreground/60">
                   Control plane
                 </span>
@@ -124,8 +124,8 @@ function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
+      <SidebarContent className="px-1">
+        <SidebarGroup className="pt-3">
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <NavigationMenu
@@ -157,7 +157,7 @@ function NavigationMenu({
   const location = useLocation()
 
   return (
-    <SidebarMenu className="gap-1">
+    <SidebarMenu className="gap-1.5">
       {items.map((item) => {
         const isActive =
           location.pathname === item.href ||
@@ -169,6 +169,7 @@ function NavigationMenu({
               tooltip={item.label}
               isActive={isActive}
               render={<NavLink to={item.href} onClick={onNavigate} />}
+              className="h-9 rounded-lg px-2.5 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground data-active:shadow-xs"
             >
               <item.icon />
               <span>{item.label}</span>

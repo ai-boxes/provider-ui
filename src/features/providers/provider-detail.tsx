@@ -5,15 +5,18 @@ import {
   CircleAlertIcon,
   CircleCheckIcon,
   CircleOffIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   Clock3Icon,
   KeyRoundIcon,
   LockKeyholeIcon,
   RefreshCwIcon,
+  SearchIcon,
   ServerIcon,
   Share2Icon,
   UserRoundIcon,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -33,6 +36,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -106,6 +110,7 @@ export function ProviderDetail({
     <section className="flex flex-1 flex-col gap-6">
       <div className="grid gap-4">
         <Button
+          nativeButton={false}
           variant="ghost"
           size="sm"
           className="-ml-2 w-fit text-muted-foreground"
@@ -121,9 +126,9 @@ export function ProviderDetail({
               <ServerIcon className="size-5" />
             </span>
             <div className="grid min-w-0 gap-1">
-              <h2 className="truncate text-xl font-semibold tracking-tight">
+              <h1 className="truncate text-2xl font-semibold tracking-[-0.025em]">
                 {account.data.label}
-              </h2>
+              </h1>
               <p className="text-sm text-muted-foreground">
                 {formatProviderKind(account.data.provider)} Provider account
               </p>
@@ -269,11 +274,6 @@ function ProviderModels({
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-start justify-end gap-2">
-            {models ? (
-              <Badge variant="outline" className="bg-background">
-                {formatModelCount(models.length)}
-              </Badge>
-            ) : null}
             {canManage ? (
               <ProviderModelRefreshControl accountId={accountId} />
             ) : null}
@@ -305,86 +305,181 @@ function ModelsTable({
   accountId: string
   canManage: boolean
 }) {
+  const [query, setQuery] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const filteredModels = useMemo(
+    () =>
+      normalizedQuery
+        ? models.filter((model) =>
+            [model.effectiveModel, model.upstreamModel, model.alias ?? ''].some(
+              (value) => value.toLocaleLowerCase().includes(normalizedQuery),
+            ),
+          )
+        : models,
+    [models, normalizedQuery],
+  )
+  const pageSize = 25
+  const pageCount = Math.max(1, Math.ceil(filteredModels.length / pageSize))
+  const currentPage = Math.min(pageIndex, pageCount - 1)
+  const visibleModels = filteredModels.slice(
+    currentPage * pageSize,
+    (currentPage + 1) * pageSize,
+  )
+
   return (
     <>
-      <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/35 hover:bg-muted/35">
-              <TableHead className="pl-4">Model</TableHead>
-              <TableHead>Upstream</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="pr-4 text-right">Last seen</TableHead>
-              {canManage ? (
-                <TableHead className="pr-4 text-right">Actions</TableHead>
-              ) : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {models.map((model) => (
-              <TableRow key={model.upstreamModel}>
-                <TableCell className="py-3.5 pl-4">
-                  <div className="grid gap-0.5">
-                    <span className="font-medium">{model.effectiveModel}</span>
-                    {model.alias ? (
-                      <span className="text-xs text-muted-foreground">
-                        Alias enabled
-                      </span>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <code className="font-mono text-xs text-muted-foreground">
-                    {model.upstreamModel}
-                  </code>
-                </TableCell>
-                <TableCell>
-                  <ModelStatusBadge model={model} />
-                </TableCell>
-                <TableCell className="pr-4 text-right text-muted-foreground">
-                  {model.lastSeenAt
-                    ? formatTimestamp(model.lastSeenAt)
-                    : 'Never'}
-                </TableCell>
-                {canManage ? (
-                  <TableCell className="pr-4 text-right">
-                    <ProviderModelEditDialog
-                      accountId={accountId}
-                      model={model}
-                    />
-                  </TableCell>
-                ) : null}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPageIndex(0)
+            }}
+            placeholder="Search models"
+            aria-label="Search models"
+            className="pl-9"
+          />
+        </div>
+        <p className="shrink-0 text-xs text-muted-foreground">
+          {normalizedQuery
+            ? `${formatModelCount(filteredModels.length)} found`
+            : formatModelCount(models.length)}
+        </p>
       </div>
 
-      <div className="divide-y md:hidden">
-        {models.map((model) => (
-          <div key={model.upstreamModel} className="grid gap-3 px-4 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="grid min-w-0 gap-1">
-                <span className="truncate font-medium">
-                  {model.effectiveModel}
-                </span>
-                <code className="truncate font-mono text-xs text-muted-foreground">
-                  {model.upstreamModel}
-                </code>
-              </div>
-              <ModelStatusBadge model={model} />
-            </div>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock3Icon className="size-3" />
-              Last seen{' '}
-              {model.lastSeenAt ? formatTimestamp(model.lastSeenAt) : 'never'}
-            </span>
-            {canManage ? (
-              <ProviderModelEditDialog accountId={accountId} model={model} />
-            ) : null}
+      {filteredModels.length === 0 ? (
+        <div className="px-4 py-12 text-center">
+          <p className="text-sm font-medium">No matching models</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try a different model name or upstream identifier.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/35 hover:bg-muted/35">
+                  <TableHead className="pl-4">Model</TableHead>
+                  <TableHead>Upstream</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="pr-4 text-right">Last seen</TableHead>
+                  {canManage ? (
+                    <TableHead className="pr-4 text-right">Actions</TableHead>
+                  ) : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleModels.map((model) => (
+                  <TableRow key={model.upstreamModel}>
+                    <TableCell className="py-3.5 pl-4">
+                      <div className="grid gap-0.5">
+                        <span className="font-medium">
+                          {model.effectiveModel}
+                        </span>
+                        {model.alias ? (
+                          <span className="text-xs text-muted-foreground">
+                            Alias enabled
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <code className="font-mono text-xs text-muted-foreground">
+                        {model.upstreamModel}
+                      </code>
+                    </TableCell>
+                    <TableCell>
+                      <ModelStatusBadge model={model} />
+                    </TableCell>
+                    <TableCell className="pr-4 text-right text-muted-foreground">
+                      {model.lastSeenAt
+                        ? formatTimestamp(model.lastSeenAt)
+                        : 'Never'}
+                    </TableCell>
+                    {canManage ? (
+                      <TableCell className="pr-4 text-right">
+                        <ProviderModelEditDialog
+                          accountId={accountId}
+                          model={model}
+                        />
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        ))}
-      </div>
+
+          <div className="divide-y md:hidden">
+            {visibleModels.map((model) => (
+              <div key={model.upstreamModel} className="grid gap-3 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid min-w-0 gap-1">
+                    <span className="truncate font-medium">
+                      {model.effectiveModel}
+                    </span>
+                    <code className="truncate font-mono text-xs text-muted-foreground">
+                      {model.upstreamModel}
+                    </code>
+                  </div>
+                  <ModelStatusBadge model={model} />
+                </div>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock3Icon className="size-3" />
+                  Last seen{' '}
+                  {model.lastSeenAt
+                    ? formatTimestamp(model.lastSeenAt)
+                    : 'never'}
+                </span>
+                {canManage ? (
+                  <ProviderModelEditDialog accountId={accountId} model={model} />
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              {currentPage * pageSize + 1}–{Math.min(
+                (currentPage + 1) * pageSize,
+                filteredModels.length,
+              )}{' '}
+              of {filteredModels.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                disabled={currentPage === 0}
+                aria-label="Previous model page"
+                title="Previous page"
+                onClick={() => setPageIndex(currentPage - 1)}
+              >
+                <ChevronLeftIcon />
+              </Button>
+              <span className="min-w-16 text-center text-xs tabular-nums text-muted-foreground">
+                Page {currentPage + 1}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                disabled={currentPage === pageCount - 1}
+                aria-label="Next model page"
+                title="Next page"
+                onClick={() => setPageIndex(currentPage + 1)}
+              >
+                <ChevronRightIcon />
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
 }
@@ -511,7 +606,9 @@ function ProviderDetailError({
               Retry
             </Button>
           ) : null}
-          <Button render={<Link to="/providers" />}>Back to providers</Button>
+          <Button nativeButton={false} render={<Link to="/providers" />}>
+            Back to providers
+          </Button>
         </div>
       </Empty>
     </section>

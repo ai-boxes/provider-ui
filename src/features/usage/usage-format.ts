@@ -40,11 +40,13 @@ export function formatUsageDateTime(ms: number): string {
   return formatUnixMs(ms)
 }
 
-// Measured against the coverage denominator, so reads that were expected but
-// never reported stay out of the numerator without becoming misses.
+// Token hit rate over attempts that reported both effective input and cache
+// reads. Missing cache detail stays unknown instead of becoming a zero.
 export function formatCacheHitRate(cache: UsageCacheTotals): string | null {
-  return cache.coverageDenominator > 0
-    ? percentFormatter.format(cache.hits / cache.coverageDenominator)
+  return cache.reportedInputTokens > 0
+    ? percentFormatter.format(
+        cache.cacheReadInputTokens / cache.reportedInputTokens,
+      )
     : null
 }
 
@@ -69,6 +71,37 @@ export function formatUsageCost(value: string): string {
   return /[1-9]/.test(value) ? `< ${renderUsd(1n, costScale)}` : '$0.00'
 }
 
+export function formatUsageCostDetailed(value: string): string {
+  const atoms = truncateToCostScale(value)
+
+  if (atoms > 0n) {
+    return renderUsd(atoms, costScale)
+  }
+
+  return /[1-9]/.test(value) ? `< ${renderUsd(1n, costScale)}` : '$0.000000'
+}
+
+export function formatUsageWindowCost(value: string): string {
+  const atoms = truncateToCostScale(value)
+  const decimals = 4
+  const factor = 10n ** BigInt(costScale - decimals)
+  const rounded = (atoms + factor / 2n) / factor
+
+  return renderScaledUsd(rounded, decimals)
+}
+
+export function formatUsagePrice(value: string): string {
+  const [whole, fraction = ''] = value.split('.')
+  const precision = fraction.padEnd(8, '0').slice(0, 8)
+  const lastSignificantDigit = precision.search(/0+$/)
+  const decimals = Math.max(
+    4,
+    lastSignificantDigit === -1 ? precision.length : lastSignificantDigit,
+  )
+
+  return `$${whole}.${precision.slice(0, decimals)} / 1M tokens`
+}
+
 // Truncates rather than rounds, so a formatted estimate never reads higher than
 // what was observed. What truncation erases is reported by the caller above.
 function truncateToCostScale(value: string): bigint {
@@ -79,6 +112,10 @@ function truncateToCostScale(value: string): bigint {
 
 function renderUsd(atoms: bigint, decimals: number): string {
   const scaled = atoms / 10n ** BigInt(costScale - decimals)
+  return renderScaledUsd(scaled, decimals)
+}
+
+function renderScaledUsd(scaled: bigint, decimals: number): string {
   const unit = 10n ** BigInt(decimals)
   const fraction = (scaled % unit).toString().padStart(decimals, '0')
 

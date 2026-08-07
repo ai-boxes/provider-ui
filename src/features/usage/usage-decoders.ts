@@ -5,6 +5,7 @@ import type {
   UsageFilterOptions,
   UsageOverview,
   UsageRequestSummary,
+  UsageRequestDetail,
   UsageRequests,
   UsageTokenTotals,
 } from '@/features/usage/usage-types'
@@ -81,6 +82,58 @@ export function decodeUsageRequests(value: unknown): UsageRequests {
     nextCursor: record.next_cursor == null
       ? null
       : requireNonEmptyString(record.next_cursor, 'usage requests next cursor'),
+  }
+}
+
+export function decodeUsageRequestDetail(value: unknown): UsageRequestDetail {
+  const record = requireRecord(value, 'usage request detail')
+  return {
+    requestId: requireNonEmptyString(record.request_id, 'usage request detail id'),
+    attempts: requireArray(record.attempts, 'usage request detail attempts').map(
+      (value, index) => {
+        const label = `usage request attempt ${index + 1}`
+        const attempt = requireRecord(value, label)
+        const cost = requireRecord(attempt.cost, `${label} cost`)
+        const components = requireRecord(
+          cost.components,
+          `${label} cost components`,
+        )
+        const price = requireRecord(attempt.price, `${label} price`)
+
+        if (typeof attempt.attributed !== 'boolean') {
+          throw new TypeError(`${label} attribution must be a boolean`)
+        }
+
+        return {
+          attributed: attempt.attributed,
+          cost: {
+            totalUsd: nullableDecimalAmount(cost.usd, `${label} total cost`),
+            inputUsd: nullableDecimalAmount(
+              components.input_usd,
+              `${label} input cost`,
+            ),
+            outputUsd: nullableDecimalAmount(
+              components.output_usd,
+              `${label} output cost`,
+            ),
+            cacheReadUsd: nullableDecimalAmount(
+              components.cache_read_usd,
+              `${label} cache read cost`,
+            ),
+          },
+          price: {
+            inputPerMillionUsd: nullableDecimalAmount(
+              price.input_per_million_usd,
+              `${label} input price`,
+            ),
+            outputPerMillionUsd: nullableDecimalAmount(
+              price.output_per_million_usd,
+              `${label} output price`,
+            ),
+          },
+        }
+      },
+    ),
   }
 }
 
@@ -168,18 +221,17 @@ function decodeCacheTotals(value: unknown): UsageCacheTotals {
   const record = requireRecord(value, 'usage cache totals')
 
   return {
-    // Hit rate is measured against this, not against hits plus misses: reads
-    // that were expected but never reported belong in the denominator without
-    // being counted as misses.
-    coverageDenominator: requireNonNegativeInteger(
-      record.coverage_denominator,
-      'cache coverage denominator',
+    reportedInputTokens: requireNonNegativeInteger(
+      record.reported_input_tokens,
+      'cache reported input tokens',
     ),
-    hits: requireNonNegativeInteger(record.hits, 'cache hits'),
-    misses: requireNonNegativeInteger(record.misses, 'cache misses'),
-    expectedButUnreported: requireNonNegativeInteger(
-      record.expected_but_unreported,
-      'cache expected but unreported',
+    cacheReadInputTokens: requireNonNegativeInteger(
+      record.cache_read_input_tokens,
+      'cache read input tokens',
+    ),
+    attemptsWithUnknownCache: requireNonNegativeInteger(
+      record.attempts_with_unknown_cache,
+      'attempts with unknown cache usage',
     ),
   }
 }
@@ -216,4 +268,8 @@ function requireDecimalAmount(value: unknown, label: string): string {
   }
 
   return value
+}
+
+function nullableDecimalAmount(value: unknown, label: string): string | null {
+  return value == null ? null : requireDecimalAmount(value, label)
 }

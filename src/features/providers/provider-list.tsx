@@ -16,6 +16,7 @@ import {
 import { Link, useNavigate } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -52,19 +53,16 @@ export function ProviderList({ currentUserId }: { currentUserId: string }) {
 
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <div className="flex justify-end">
-        <div className="flex items-center gap-2">
-          {providers.data ? (
-            <Badge variant="outline" className="bg-background">
-              {formatAccountCount(providers.data.length)}
-            </Badge>
-          ) : null}
-          <Button render={<Link to="/providers/new" />}>
+      <PageHeader
+        title="Providers"
+        description="Connect upstream accounts, review access and health, and keep model availability current."
+        actions={
+          <Button nativeButton={false} render={<Link to="/providers/new" />}>
             <PlusIcon />
             Add provider
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {providers.isPending ? <ProviderListLoading /> : null}
       {providers.isError ? (
@@ -93,7 +91,7 @@ function ProviderAccounts({
       <Card className="hidden gap-0 py-0 md:flex">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/35 hover:bg-muted/35">
+            <TableRow className="bg-muted/55 hover:bg-muted/55">
               <TableHead className="pl-4">Provider</TableHead>
               <TableHead>Access</TableHead>
               <TableHead>Credential</TableHead>
@@ -499,8 +497,4 @@ function formatCredentialKind(kind: ProviderCredentialKind): string {
 
 function formatTimestamp(timestamp: number): string {
   return formatUnixSeconds(timestamp)
-}
-
-function formatAccountCount(count: number): string {
-  return `${count} ${count === 1 ? 'account' : 'accounts'}`
 }

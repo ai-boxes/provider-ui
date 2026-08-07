@@ -2,12 +2,14 @@ import { requestAuthenticatedData } from '@/features/auth/authenticated-request'
 import {
   decodeUsageFilterOptions,
   decodeUsageOverview,
+  decodeUsageRequestDetail,
   decodeUsageRequests,
 } from '@/features/usage/usage-decoders'
 import type {
   UsageAttributionBasis,
   UsageFilterOptions,
   UsageOverview,
+  UsageRequestDetail,
   UsageRange,
   UsageRequests,
 } from '@/features/usage/usage-types'
@@ -89,4 +91,15 @@ export async function getUsageRequests(
     throw new TypeError('usage requests used a different attribution basis')
   }
   return requests
+}
+
+export async function getUsageRequestDetail(
+  requestId: string,
+  range: UsageRange,
+  basis: UsageAttributionBasis,
+): Promise<UsageRequestDetail> {
+  return requestAuthenticatedData(
+    `/api/v1/usage/requests/${encodeURIComponent(requestId)}?${rangeParams(range, basis).toString()}`,
+    decodeUsageRequestDetail,
+  )
 }

@@ -3,6 +3,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   getUsageFilterOptions,
   getUsageOverview,
+  getUsageRequestDetail,
   getUsageRequests,
 } from '@/features/usage/usage-api'
 import type {
@@ -39,6 +40,20 @@ export const usageKeys = {
       filters.groupLabel ?? 'all',
       cursor ?? 'start',
     ] as const,
+  requestDetail: (requestId: string, window: UsageWindowId) =>
+    ['usage', 'request-detail', requestId, window, usageBasis] as const,
+}
+
+export function usageRequestDetailQueryOptions(
+  requestId: string,
+  window: UsageWindowId,
+) {
+  return queryOptions({
+    queryKey: usageKeys.requestDetail(requestId, window),
+    queryFn: () =>
+      getUsageRequestDetail(requestId, currentUsageRange(window), usageBasis),
+    staleTime: usageStaleTime,
+  })
 }
 
 export function usageFilterOptionsQueryOptions(window: UsageWindowId) {

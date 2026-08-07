@@ -23,10 +23,9 @@ export type UsageTokenTotals = {
 }
 
 export type UsageCacheTotals = {
-  coverageDenominator: number
-  hits: number
-  misses: number
-  expectedButUnreported: number
+  reportedInputTokens: number
+  cacheReadInputTokens: number
+  attemptsWithUnknownCache: number
 }
 
 // Amounts stay decimal strings all the way to the formatter. The backend
@@ -78,6 +77,25 @@ export type UsageRequests = {
   pageSize: number
   requests: UsageRequestSummary[]
   nextCursor: string | null
+}
+
+export type UsageRequestAttemptDetail = {
+  attributed: boolean
+  cost: {
+    totalUsd: string | null
+    inputUsd: string | null
+    outputUsd: string | null
+    cacheReadUsd: string | null
+  }
+  price: {
+    inputPerMillionUsd: string | null
+    outputPerMillionUsd: string | null
+  }
+}
+
+export type UsageRequestDetail = {
+  requestId: string
+  attempts: UsageRequestAttemptDetail[]
 }
 
 export type UsageRange = {

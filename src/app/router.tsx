@@ -8,6 +8,9 @@ import { SetupPage } from '@/routes/setup-page'
 export const router = createBrowserRouter([
   {
     Component: AuthRouteBoundary,
+    hydrateFallbackElement: (
+      <div className="min-h-svh bg-background" aria-busy="true" />
+    ),
     children: [
       {
         path: '/setup',

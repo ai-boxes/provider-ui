@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -50,16 +51,11 @@ export function ApiKeyList() {
 
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <div className="flex justify-end">
-        <div className="flex items-center gap-2">
-          {apiKeys.data ? (
-            <Badge variant="outline" className="bg-background">
-              {formatKeyCount(apiKeys.data.length)}
-            </Badge>
-          ) : null}
-          <ApiKeyCreateDialog />
-        </div>
-      </div>
+      <PageHeader
+        title="API keys"
+        description="Issue scoped credentials and monitor expiration, spending limits, and access status."
+        actions={<ApiKeyCreateDialog />}
+      />
       {apiKeys.isPending ? <ApiKeyListLoading /> : null}
       {apiKeys.isError ? (
         <ApiKeyListError onRetry={() => void apiKeys.refetch()} />
@@ -84,7 +80,7 @@ function ApiKeyCollection({
       <Card className="hidden gap-0 py-0 lg:flex">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/35 hover:bg-muted/35">
+            <TableRow className="bg-muted/55 hover:bg-muted/55">
               <TableHead className="pl-4">Name</TableHead>
               <TableHead>API Key</TableHead>
               <TableHead>Group</TableHead>
@@ -92,7 +88,7 @@ function ApiKeyCollection({
               <TableHead>Expires</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="pr-4 text-right">Action</TableHead>
+              <TableHead className="w-16 pr-4 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -372,10 +368,6 @@ function ApiKeyListEmpty() {
       </Empty>
     </Card>
   )
-}
-
-function formatKeyCount(count: number): string {
-  return `${count} ${count === 1 ? 'key' : 'keys'}`
 }
 
 function formatUsage(apiKey: {

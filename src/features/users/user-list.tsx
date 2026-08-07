@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CircleAlertIcon, RefreshCwIcon, UsersIcon } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -42,26 +43,11 @@ export function UserList() {
 
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="grid max-w-2xl gap-1">
-          <p className="text-sm leading-6 text-muted-foreground">
-            Manage the accounts that can sign in to this control plane.
-            Provider access continues to follow ownership and visibility rules.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            New users are created as standard users. Super admin remains a
-            first-setup role.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 self-start">
-          {users.data ? (
-            <Badge variant="outline" className="bg-background">
-              {formatUserCount(users.data.length)}
-            </Badge>
-          ) : null}
-          <UserCreateDialog />
-        </div>
-      </div>
+      <PageHeader
+        title="Users"
+        description="Manage who can sign in to this control plane. Provider access continues to follow ownership and visibility rules."
+        actions={<UserCreateDialog />}
+      />
 
       {users.isPending ? <UserListLoading /> : null}
       {users.isError ? (
@@ -87,7 +73,7 @@ function UserCollection({
       <Card className="hidden gap-0 py-0 lg:flex">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/35 hover:bg-muted/35">
+            <TableRow className="bg-muted/55 hover:bg-muted/55">
               <TableHead className="pl-4">User</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
@@ -315,8 +301,4 @@ function UserListEmpty() {
       </Empty>
     </Card>
   )
-}
-
-function formatUserCount(count: number): string {
-  return count === 1 ? '1 user' : `${count} users`
 }

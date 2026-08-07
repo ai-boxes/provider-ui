@@ -4,6 +4,7 @@ import {
   CircleAlertIcon,
   EyeIcon,
   Loader2Icon,
+  MoreHorizontalIcon,
   PencilIcon,
   PowerIcon,
   Trash2Icon,
@@ -23,7 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -36,6 +36,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Field,
   FieldDescription,
@@ -75,55 +82,77 @@ export function ApiKeyActions({
   apiKey: ApiKeySummary
   now: number
 }) {
-  return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <ApiKeyDisableButton apiKey={apiKey} now={now} />
-      <ApiKeyEditDialog apiKey={apiKey} />
-      <ApiKeyDeleteDialog apiKey={apiKey} />
-    </div>
-  )
-}
-
-function ApiKeyDisableButton({
-  apiKey,
-  now,
-}: {
-  apiKey: ApiKeySummary
-  now: number
-}) {
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const queryClient = useQueryClient()
   const expired = apiKey.expiresAt !== null && apiKey.expiresAt <= now
-  const mutation = useMutation({
+  const statusMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       updateApiKey({ keyId: apiKey.id, enabled }),
     onSuccess: (updated) => replaceListItem(queryClient, apiKeyKeys.all, updated),
   })
 
   return (
-    <div className="grid gap-1">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={mutation.isPending}
-        onClick={() => mutation.mutate(!apiKey.enabled)}
-      >
-        {mutation.isPending ? (
-          <Loader2Icon className="animate-spin" />
-        ) : (
-          <PowerIcon />
-        )}
-        {apiKey.enabled ? 'Disable' : 'Enable'}
-      </Button>
-      {mutation.isError ? (
+    <div className="grid justify-items-end gap-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Actions for ${apiKey.label}`}
+              title="Actions"
+            />
+          }
+        >
+          <MoreHorizontalIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem
+            disabled={statusMutation.isPending}
+            onClick={() => statusMutation.mutate(!apiKey.enabled)}
+          >
+            {statusMutation.isPending ? (
+              <Loader2Icon className="animate-spin" />
+            ) : (
+              <PowerIcon />
+            )}
+            {apiKey.enabled ? 'Disable' : 'Enable'}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEditOpen(true)}>
+            <PencilIcon />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2Icon />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {statusMutation.isError ? (
         <span role="alert" className="text-xs text-destructive">
           Unable to update key status.
         </span>
       ) : expired && apiKey.enabled ? (
-        <span className="max-w-28 text-xs text-muted-foreground">
-          Expired keys stay blocked until edited.
+        <span className="max-w-32 text-right text-xs text-muted-foreground">
+          Expired until edited
         </span>
       ) : null}
+      <ApiKeyEditDialog
+        apiKey={apiKey}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      <ApiKeyDeleteDialog
+        apiKey={apiKey}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
     </div>
   )
 }
@@ -262,8 +291,15 @@ const editSchema = z
 
 type EditValues = z.infer<typeof editSchema>
 
-function ApiKeyEditDialog({ apiKey }: { apiKey: ApiKeySummary }) {
-  const [open, setOpen] = useState(false)
+function ApiKeyEditDialog({
+  apiKey,
+  open,
+  onOpenChange,
+}: {
+  apiKey: ApiKeySummary
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const queryClient = useQueryClient()
   const providers = useQuery({
     ...providersQueryOptions,
@@ -290,10 +326,10 @@ function ApiKeyEditDialog({ apiKey }: { apiKey: ApiKeySummary }) {
         quotaLimitUsd: values.quotaLimitUsd.trim()
           ? values.quotaLimitUsd.trim()
           : null,
-      }),
+    }),
     onSuccess: (updated) => {
       replaceListItem(queryClient, apiKeyKeys.all, updated)
-      setOpen(false)
+      onOpenChange(false)
     },
   })
   const busy = mutation.isPending
@@ -303,7 +339,7 @@ function ApiKeyEditDialog({ apiKey }: { apiKey: ApiKeySummary }) {
       return
     }
 
-    setOpen(nextOpen)
+    onOpenChange(nextOpen)
     if (nextOpen) {
       form.reset(editDefaultValues(apiKey))
       mutation.reset()
@@ -312,10 +348,6 @@ function ApiKeyEditDialog({ apiKey }: { apiKey: ApiKeySummary }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        <PencilIcon />
-        Edit
-      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit {apiKey.label}</DialogTitle>
@@ -446,8 +478,15 @@ function ApiKeyEditDialog({ apiKey }: { apiKey: ApiKeySummary }) {
   )
 }
 
-function ApiKeyDeleteDialog({ apiKey }: { apiKey: ApiKeySummary }) {
-  const [open, setOpen] = useState(false)
+function ApiKeyDeleteDialog({
+  apiKey,
+  open,
+  onOpenChange,
+}: {
+  apiKey: ApiKeySummary
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const queryClient = useQueryClient()
   const mutation = useMutation({
     mutationFn: () => deleteApiKey(apiKey.id),
@@ -455,7 +494,7 @@ function ApiKeyDeleteDialog({ apiKey }: { apiKey: ApiKeySummary }) {
       queryClient.setQueryData<ApiKeySummary[]>(apiKeyKeys.all, (keys) =>
         keys?.filter((key) => key.id !== apiKey.id),
       )
-      setOpen(false)
+      onOpenChange(false)
     },
   })
 
@@ -464,7 +503,7 @@ function ApiKeyDeleteDialog({ apiKey }: { apiKey: ApiKeySummary }) {
       return
     }
 
-    setOpen(nextOpen)
+    onOpenChange(nextOpen)
     if (nextOpen) {
       mutation.reset()
     }
@@ -472,14 +511,6 @@ function ApiKeyDeleteDialog({ apiKey }: { apiKey: ApiKeySummary }) {
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger
-        render={
-          <Button variant="ghost" size="sm" className="text-destructive" />
-        }
-      >
-        <Trash2Icon />
-        Delete
-      </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogMedia className="bg-destructive/10 text-destructive">

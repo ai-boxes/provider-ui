@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import {
   ChartNoAxesColumnIcon,
   ChevronLeftIcon,
@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -24,6 +25,11 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from '@/components/ui/native-select'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -38,6 +44,9 @@ import {
   formatCacheHitRate,
   formatUsageCompactCount,
   formatUsageCost,
+  formatUsageCostDetailed,
+  formatUsageWindowCost,
+  formatUsagePrice,
   formatUsageCount,
   formatUsageDateTime,
   formatUsageLatencyMs,
@@ -48,12 +57,15 @@ import {
 import {
   usageFilterOptionsQueryOptions,
   usageOverviewQueryOptions,
+  usageRequestDetailQueryOptions,
   usageRequestsQueryOptions,
   type UsageFilterState,
 } from '@/features/usage/usage-query'
 import type {
   UsageOverview as UsageOverviewData,
+  UsageCostTotals,
   UsageRequestSummary,
+  UsageRequestDetail,
   UsageTokenTotals,
   UsageWindowId,
 } from '@/features/usage/usage-types'
@@ -170,19 +182,19 @@ export function UsageOverview() {
 
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {overview.data ? (
-          <p className="text-sm text-muted-foreground">
-            {formatUsageRange(overview.data.fromMs, overview.data.toMs)}
-          </p>
-        ) : (
-          <Skeleton className="h-4 w-36" />
-        )}
-        <div className="flex flex-wrap items-center gap-2 self-start">
+      <PageHeader
+        title="Usage"
+        description={
+          overview.data
+            ? `Track requests, tokens, cost, and upstream performance · ${formatUsageRange(overview.data.fromMs, overview.data.toMs)}`
+            : 'Track requests, token consumption, cost, and upstream performance.'
+        }
+        actions={
+          <>
           <UsageWindowSelector value={windowId} onSelect={selectWindow} />
           <Button
             variant="outline"
-            size="icon-sm"
+            size="icon"
             disabled={isFetching}
             aria-label="Refresh usage"
             title="Refresh usage"
@@ -195,8 +207,9 @@ export function UsageOverview() {
           >
             <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} />
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {overview.isPending ? <UsageOverviewLoading /> : null}
       {overview.isError ? (
@@ -206,8 +219,8 @@ export function UsageOverview() {
 
       {overview.data ? (
         <UsageSection title="Requests">
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
                 <NativeSelect
                   aria-label="API key filter"
                   className="h-8 w-44"
@@ -249,30 +262,31 @@ export function UsageOverview() {
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>
-              </div>
-
-              {requests.isPending ? <UsageTableSkeleton rows={6} cols={8} /> : null}
-              {requests.isError ? (
-                <UsageInlineError onRetry={() => void requests.refetch()} />
-              ) : null}
-              {requests.data ? (
-                <>
-                  <UsageRequestsTable
-                    items={requestItems}
-                  />
-                  <UsageRequestsPagination
-                    pageIndex={pageIndex}
-                    pageSize={requests.data.pageSize}
-                    itemCount={requestItems.length}
-                    canGoPrevious={canGoPrevious}
-                    canGoNext={canGoNext}
-                    isFetching={requests.isFetching}
-                    onPrevious={goPreviousPage}
-                    onNext={goNextPage}
-                  />
-                </>
-              ) : null}
             </div>
+
+            {requests.isPending ? <UsageTableSkeleton rows={6} cols={8} /> : null}
+            {requests.isError ? (
+              <UsageInlineError onRetry={() => void requests.refetch()} />
+            ) : null}
+            {requests.data ? (
+              <>
+                <UsageRequestsTable
+                  items={requestItems}
+                  windowId={windowId}
+                />
+                <UsageRequestsPagination
+                  pageIndex={pageIndex}
+                  pageSize={requests.data.pageSize}
+                  itemCount={requestItems.length}
+                  canGoPrevious={canGoPrevious}
+                  canGoNext={canGoNext}
+                  isFetching={requests.isFetching}
+                  onPrevious={goPreviousPage}
+                  onNext={goNextPage}
+                />
+              </>
+            ) : null}
+          </div>
         </UsageSection>
       ) : null}
     </section>
@@ -290,7 +304,7 @@ function UsageWindowSelector({
     <div
       role="group"
       aria-label="Time window"
-      className="flex items-center gap-1 rounded-lg border bg-background p-1"
+      className="flex items-center gap-1 rounded-xl border border-border/80 bg-card p-1 shadow-xs"
     >
       {usageWindows.map((window) => (
         <Button
@@ -299,7 +313,7 @@ function UsageWindowSelector({
           variant={window.id === value ? 'secondary' : 'ghost'}
           aria-pressed={window.id === value}
           title={window.label}
-          className="h-7 px-2.5 text-xs"
+          className="h-8 px-3 text-xs"
           onClick={() => onSelect(window.id)}
         >
           {window.short}
@@ -316,6 +330,10 @@ function UsageSummary({ overview }: { overview: UsageOverviewData }) {
 
   const { cost, tokens, cache } = overview
   const hitRate = formatCacheHitRate(cache)
+  const windowCost =
+    cost.completeAttempts > 0
+      ? formatUsageWindowCost(cost.completeUsd)
+      : '—'
 
   return (
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -333,11 +351,7 @@ function UsageSummary({ overview }: { overview: UsageOverviewData }) {
         />
         <UsageStat
           label="Window cost"
-          value={
-            cost.completeAttempts > 0 && cost.completeAttempts === overview.attempts
-              ? `≈ ${formatUsageCost(cost.completeUsd)}`
-              : '—'
-          }
+          value={windowCost}
         />
         <UsageStat label="Cache hit rate" value={hitRate ?? '—'} />
       </div>
@@ -346,15 +360,17 @@ function UsageSummary({ overview }: { overview: UsageOverviewData }) {
 
 function UsageRequestsTable({
   items,
+  windowId,
 }: {
   items: UsageRequestSummary[]
+  windowId: UsageWindowId
 }) {
   if (items.length === 0) {
     return <UsagePanelEmpty text="No requests match the current filters." />
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="min-w-0 overflow-hidden rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -389,11 +405,11 @@ function UsageRequestsTable({
                   <TokensBreakdown tokens={item.tokens} />
                 </TableCell>
                 <TableCell className="tabular-nums">
-                  {item.cost.completeAttempts > 0 &&
-                  item.cost.partialAttempts === 0 &&
-                  item.cost.unavailableAttempts === 0
-                    ? formatUsageCost(item.cost.completeUsd)
-                    : '—'}
+                  <CostBreakdown
+                    requestId={item.requestId}
+                    cost={item.cost}
+                    windowId={windowId}
+                  />
                 </TableCell>
                 <TableCell>
                   <LatencyBreakdown
@@ -415,27 +431,207 @@ function UsageRequestsTable({
 }
 
 function TokensBreakdown({ tokens }: { tokens: UsageTokenTotals }) {
-  // Keep the three token measures on one line so the table stays scannable.
+  const total = tokens.effectiveInput + tokens.output
+
   return (
-    <div className="flex min-w-[10.5rem] items-center gap-3 whitespace-nowrap text-xs leading-4 tabular-nums">
-      <TokenGlyph
-        symbol="↑"
-        tone="input"
-        label="Input tokens"
-        value={tokens.effectiveInput}
+    <HoverCard>
+      <HoverCardTrigger
+        render={
+          <button
+            type="button"
+            className="flex min-w-[10.5rem] items-center gap-3 whitespace-nowrap rounded-md text-xs leading-4 tabular-nums outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-label={`Token breakdown, ${formatUsageCount(total)} total tokens`}
+          />
+        }
+      >
+        <TokenGlyph
+          symbol="↑"
+          tone="input"
+          value={tokens.effectiveInput}
+        />
+        <TokenGlyph
+          symbol="↓"
+          tone="output"
+          value={tokens.output}
+        />
+        <TokenGlyph
+          symbol={<DatabaseZapIcon size={13} strokeWidth={2.25} />}
+          tone="cache"
+          value={tokens.cacheReadInput}
+        />
+      </HoverCardTrigger>
+      <HoverCardContent side="top" align="start" className="w-60 p-3">
+        <BreakdownTitle>Token breakdown</BreakdownTitle>
+        <div className="mt-2 grid gap-1">
+          <BreakdownRow
+            label="Input tokens"
+            value={formatUsageCount(tokens.effectiveInput)}
+          />
+          <BreakdownRow label="Output tokens" value={formatUsageCount(tokens.output)} />
+          <BreakdownRow label="Cache read" value={formatUsageCount(tokens.cacheReadInput)} />
+        </div>
+        <div className="my-2 h-px bg-border" />
+        <BreakdownRow
+          label="Total tokens"
+          value={formatUsageCount(total)}
+          strong
+        />
+        {tokens.attemptsWithUnknownInput > 0 ? (
+          <p className="mt-2 text-[0.7rem] leading-4 text-muted-foreground">
+            {formatUsageCount(tokens.attemptsWithUnknownInput)} attempt had no
+            reported input count.
+          </p>
+        ) : null}
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
+function CostBreakdown({
+  requestId,
+  cost,
+  windowId,
+}: {
+  requestId: string
+  cost: UsageCostTotals
+  windowId: UsageWindowId
+}) {
+  const complete =
+    cost.completeAttempts > 0 &&
+    cost.partialAttempts === 0 &&
+    cost.unavailableAttempts === 0
+
+  if (!complete) {
+    return <span className="text-muted-foreground">—</span>
+  }
+
+  return (
+    <CompleteCostBreakdown
+      requestId={requestId}
+      total={formatUsageCost(cost.completeUsd)}
+      windowId={windowId}
+    />
+  )
+}
+
+function CompleteCostBreakdown({
+  requestId,
+  total,
+  windowId,
+}: {
+  requestId: string
+  total: string
+  windowId: UsageWindowId
+}) {
+  const [open, setOpen] = useState(false)
+  const detail = useQuery({
+    ...usageRequestDetailQueryOptions(requestId, windowId),
+    enabled: open,
+  })
+
+  return (
+    <HoverCard open={open} onOpenChange={setOpen}>
+      <HoverCardTrigger
+        render={
+          <button
+            type="button"
+            className="rounded-md text-left font-medium tabular-nums outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-label={`Cost breakdown, ${total}`}
+          />
+        }
+      >
+        {total}
+      </HoverCardTrigger>
+      <HoverCardContent side="top" align="start" className="w-60 p-3">
+        <BreakdownTitle>Cost breakdown</BreakdownTitle>
+        <CostBreakdownContent detail={detail} />
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
+function CostBreakdownContent({
+  detail,
+}: {
+  detail: UseQueryResult<UsageRequestDetail, Error>
+}) {
+  if (detail.isPending) {
+    return <p className="mt-2 text-xs text-muted-foreground">Loading pricing…</p>
+  }
+
+  if (detail.isError) {
+    return <p className="mt-2 text-xs text-destructive">Unable to load pricing.</p>
+  }
+
+  const attempt = detail.data.attempts.find((item) => item.attributed)
+  if (!attempt) {
+    return <p className="mt-2 text-xs text-muted-foreground">Pricing unavailable.</p>
+  }
+
+  return (
+    <>
+      <div className="mt-2 grid gap-1">
+        <BreakdownRow label="Input cost" value={formatOptionalCost(attempt.cost.inputUsd)} />
+        <BreakdownRow label="Output cost" value={formatOptionalCost(attempt.cost.outputUsd)} />
+        <BreakdownRow
+          label="Cache read cost"
+          value={formatOptionalCost(attempt.cost.cacheReadUsd)}
+        />
+      </div>
+      <div className="my-2 h-px bg-border" />
+      <div className="grid gap-1">
+        <BreakdownRow
+          label="Input price"
+          value={formatOptionalPrice(attempt.price.inputPerMillionUsd)}
+        />
+        <BreakdownRow
+          label="Output price"
+          value={formatOptionalPrice(attempt.price.outputPerMillionUsd)}
+        />
+      </div>
+      <div className="my-2 h-px bg-border" />
+      <BreakdownRow
+        label="Total cost"
+        value={formatOptionalCost(attempt.cost.totalUsd)}
+        strong
       />
-      <TokenGlyph
-        symbol="↓"
-        tone="output"
-        label="Output tokens"
-        value={tokens.output}
-      />
-      <TokenGlyph
-        symbol={<DatabaseZapIcon size={13} strokeWidth={2.25} />}
-        tone="cache"
-        label="Cache tokens"
-        value={tokens.cacheReadInput}
-      />
+    </>
+  )
+}
+
+function formatOptionalCost(value: string | null): string {
+  return value === null ? '—' : formatUsageCostDetailed(value)
+}
+
+function formatOptionalPrice(value: string | null): string {
+  return value === null ? '—' : formatUsagePrice(value)
+}
+
+function BreakdownTitle({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs font-semibold text-foreground">{children}</p>
+}
+
+function BreakdownRow({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string
+  value: string
+  strong?: boolean
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span
+        className={
+          strong
+            ? 'font-semibold tabular-nums text-foreground'
+            : 'font-medium tabular-nums text-foreground'
+        }
+      >
+        {value}
+      </span>
     </div>
   )
 }
@@ -443,12 +639,10 @@ function TokensBreakdown({ tokens }: { tokens: UsageTokenTotals }) {
 function TokenGlyph({
   symbol,
   tone,
-  label,
   value,
 }: {
   symbol: React.ReactNode
   tone: 'input' | 'output' | 'cache'
-  label: string
   value: number
 }) {
   const toneClass =
@@ -461,8 +655,7 @@ function TokenGlyph({
   return (
     <div
       className="flex items-center gap-1"
-      title={label}
-      aria-label={`${label} ${formatUsageCount(value)}`}
+      aria-hidden
     >
       <span
         aria-hidden
@@ -614,7 +807,7 @@ function UsageSection({
   children: React.ReactNode
 }) {
   return (
-    <section className="grid gap-3">
+    <section className="grid min-w-0 gap-3">
       <h2 className="text-sm font-medium">{title}</h2>
       {children}
     </section>

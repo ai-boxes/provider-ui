@@ -103,6 +103,7 @@ export function ProviderOAuthFlow({
     <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6">
       <div className="grid gap-4">
         <Button
+          nativeButton={false}
           variant="ghost"
           size="sm"
           className="-ml-2 w-fit text-muted-foreground"
