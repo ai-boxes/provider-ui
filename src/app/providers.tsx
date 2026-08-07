@@ -3,6 +3,7 @@ import { useEffect, useRef, type PropsWithChildren } from 'react'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/features/auth/auth-provider'
+import { setupStatusQueryKey } from '@/features/auth/setup-status-query'
 import type { AuthState } from '@/features/auth/auth-types'
 import { useAuthState } from '@/features/auth/use-auth-state'
 
@@ -30,13 +31,22 @@ function QueryCacheSessionBoundary({ children }: PropsWithChildren) {
       previousUserId.current !== undefined &&
       previousUserId.current !== userId
     ) {
-      queryClient.clear()
+      queryClient.removeQueries({
+        predicate: (query) => !isSetupStatusQuery(query.queryKey),
+      })
     }
 
     previousUserId.current = userId
   }, [userId])
 
   return children
+}
+
+function isSetupStatusQuery(queryKey: readonly unknown[]): boolean {
+  return (
+    queryKey.length === setupStatusQueryKey.length &&
+    queryKey.every((part, index) => part === setupStatusQueryKey[index])
+  )
 }
 
 function authUserId(state: AuthState): string | null {
