@@ -1,23 +1,43 @@
 import type { UsageCacheTotals } from '@/features/usage/usage-types'
+import { formatUnixMs } from '@/lib/datetime'
 
 const countFormatter = new Intl.NumberFormat('en')
 const percentFormatter = new Intl.NumberFormat('en', {
   style: 'percent',
   maximumFractionDigits: 1,
 })
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function formatUsageCount(value: number): string {
   return countFormatter.format(value)
 }
 
+// Compact counts for dense table cells (design: 1.1K, not 1,100).
+export function formatUsageCompactCount(value: number): string {
+  if (value < 1000) {
+    return formatUsageCount(Math.round(value))
+  }
+  if (value < 1_000_000) {
+    const kilo = value / 1000
+    const digits = kilo >= 10 ? 0 : 1
+    return `${trimTrailingZero(kilo.toFixed(digits))}K`
+  }
+  const mega = value / 1_000_000
+  const digits = mega >= 10 ? 0 : 1
+  return `${trimTrailingZero(mega.toFixed(digits))}M`
+}
+
+function trimTrailingZero(value: string): string {
+  return value.endsWith('.0') ? value.slice(0, -2) : value
+}
+
 // Usage timestamps are unix milliseconds, unlike the unix seconds every other
 // endpoint in this app returns.
 export function formatUsageRange(fromMs: number, toMs: number): string {
-  return `${dateTimeFormatter.format(new Date(fromMs))} – ${dateTimeFormatter.format(new Date(toMs))}`
+  return `${formatUnixMs(fromMs)} – ${formatUnixMs(toMs)}`
+}
+
+export function formatUsageDateTime(ms: number): string {
+  return formatUnixMs(ms)
 }
 
 // Measured against the coverage denominator, so reads that were expected but
@@ -67,4 +87,61 @@ function renderUsd(atoms: bigint, decimals: number): string {
 
 function groupDigits(value: bigint): string {
   return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+
+export function formatUsageQuota(
+  spentUsd: string,
+  limitUsd: string | null,
+): string {
+  const spent = formatUsageCost(spentUsd)
+  if (limitUsd === null) {
+    return `${spent} / ∞`
+  }
+  return `${spent} / ${formatUsageCost(limitUsd)}`
+}
+
+
+export function formatUsageLatency(
+  startedAtMs: number,
+  completedAtMs: number,
+): string {
+  return formatUsageLatencyMs(totalLatencyMs(startedAtMs, completedAtMs))
+}
+
+
+export function formatUsageLatencyMs(ms: number | null): string {
+  if (ms === null || ms < 0) {
+    return '—'
+  }
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`
+  }
+  if (ms < 10_000) {
+    return `${(ms / 1000).toFixed(2)}s`
+  }
+  if (ms < 60_000) {
+    return `${(ms / 1000).toFixed(1)}s`
+  }
+  const totalSeconds = Math.round(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}m ${seconds}s`
+}
+
+export function totalLatencyMs(
+  startedAtMs: number,
+  completedAtMs: number,
+): number {
+  return completedAtMs - startedAtMs
+}
+
+export function elapsedLatencyMs(
+  startedAtMs: number,
+  observedAtMs: number | null,
+): number | null {
+  if (observedAtMs === null || observedAtMs < startedAtMs) {
+    return null
+  }
+  return observedAtMs - startedAtMs
 }
