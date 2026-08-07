@@ -166,7 +166,7 @@ export function ProviderCreate() {
   return (
     <CreateStep
       title={`Connect ${formatProviderKind(provider)}`}
-      description="Configure the upstream endpoint and optional authentication used by this provider account."
+      description="Configure the upstream endpoint and API key used by this provider account."
       backTo="/providers/new"
       backLabel="Change provider type"
       narrow

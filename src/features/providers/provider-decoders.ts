@@ -13,6 +13,7 @@ import {
   requireBoolean,
   requireEnum,
   requireNonEmptyString,
+  requireNonNegativeInteger,
   requirePositiveInteger,
   requireRecord,
   requireTimestamp,
@@ -21,6 +22,8 @@ import type {
   CreatedProviderAccount,
   ProviderAccount,
   ProviderAccountWithQuota,
+  ProviderHealthAccount,
+  ProviderHealthSnapshot,
   ProviderAuthState,
   ProviderCredentialKind,
   ProviderKind,
@@ -49,7 +52,6 @@ const providerVisibilities = [
 const providerCredentialKinds = [
   'oauth',
   'api_key',
-  'none',
 ] as const satisfies readonly ProviderCredentialKind[]
 
 const providerAuthStates = [
@@ -137,6 +139,33 @@ export function decodeProviderAccount(value: unknown): ProviderAccount {
   return decodeProviderAccountValue(value, 'provider account')
 }
 
+export function decodeProviderHealth(value: unknown): ProviderHealthSnapshot {
+  const record = requireRecord(value, 'provider health')
+  const accounts = requireArray(record.accounts, 'provider health accounts')
+
+  return {
+    fromMs: requireTimestamp(record.from_ms, 'provider health start time'),
+    toMs: requireTimestamp(record.to_ms, 'provider health end time'),
+    accounts: accounts.map((account, index) =>
+      decodeProviderHealthAccount(account, `provider health account ${index + 1}`),
+    ),
+  }
+}
+
+function decodeProviderHealthAccount(
+  value: unknown,
+  label: string,
+): ProviderHealthAccount {
+  const record = requireRecord(value, label)
+
+  return {
+    accountId: requireNonEmptyString(record.account_id, `${label} ID`),
+    requests: requireNonNegativeInteger(record.requests, `${label} requests`),
+    successes: requireNonNegativeInteger(record.successes, `${label} successes`),
+    failures: requireNonNegativeInteger(record.failures, `${label} failures`),
+  }
+}
+
 export function decodeProviderModels(value: unknown): ProviderModel[] {
   if (!Array.isArray(value)) {
     throw new TypeError('provider models must be an array')
@@ -185,6 +214,7 @@ export function decodeProviderOAuthSession(
       'OAuth provider account ID',
     ),
     label: requireNonEmptyString(record.label, 'OAuth provider label'),
+    groupLabel: requireNonEmptyString(record.group_label, 'OAuth provider group label'),
     status: requireEnum(
       record.status,
       providerOAuthStatuses,
@@ -241,6 +271,7 @@ function decodeProviderAccountRecord(
     ),
     provider,
     label: requireNonEmptyString(record.label, 'provider label'),
+    groupLabel: requireNonEmptyString(record.group_label, 'provider group label'),
     baseUrl: decodeBaseUrl(record.config, provider),
     credentialKind: requireEnum(
       record.credential_kind,

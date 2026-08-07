@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  CalendarClockIcon,
   CircleAlertIcon,
   EyeIcon,
   Loader2Icon,
+  PencilIcon,
+  PowerIcon,
   Trash2Icon,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -42,7 +43,11 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field'
-import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from '@/components/ui/native-select'
 import {
   deleteApiKey,
   getApiKey,
@@ -59,10 +64,27 @@ import type {
   ApiKeyDetail,
   ApiKeySummary,
 } from '@/features/api-keys/api-key-types'
+import { providersQueryOptions } from '@/features/providers/providers-query'
 import { apiErrorMessage } from '@/lib/api/error'
 import { replaceListItem } from '@/lib/api/query-cache'
 
-export function ApiKeyEnabledControl({
+export function ApiKeyActions({
+  apiKey,
+  now,
+}: {
+  apiKey: ApiKeySummary
+  now: number
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <ApiKeyDisableButton apiKey={apiKey} now={now} />
+      <ApiKeyEditDialog apiKey={apiKey} />
+      <ApiKeyDeleteDialog apiKey={apiKey} />
+    </div>
+  )
+}
+
+function ApiKeyDisableButton({
   apiKey,
   now,
 }: {
@@ -78,44 +100,35 @@ export function ApiKeyEnabledControl({
   })
 
   return (
-    <div className="grid gap-1.5">
-      <div className="flex items-center gap-2">
-        <Switch
-          size="sm"
-          checked={apiKey.enabled}
-          disabled={mutation.isPending}
-          aria-label={apiKey.enabled ? 'Disable API key' : 'Enable API key'}
-          onCheckedChange={(enabled) => mutation.mutate(enabled)}
-        />
-        <span className="text-sm">{apiKey.enabled ? 'Enabled' : 'Disabled'}</span>
+    <div className="grid gap-1">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={mutation.isPending}
+        onClick={() => mutation.mutate(!apiKey.enabled)}
+      >
         {mutation.isPending ? (
-          <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />
-        ) : null}
-      </div>
+          <Loader2Icon className="animate-spin" />
+        ) : (
+          <PowerIcon />
+        )}
+        {apiKey.enabled ? 'Disable' : 'Enable'}
+      </Button>
       {mutation.isError ? (
         <span role="alert" className="text-xs text-destructive">
           Unable to update key status.
         </span>
       ) : expired && apiKey.enabled ? (
-        <span className="text-xs text-muted-foreground">
-          Update the expiration before this key can authenticate again.
+        <span className="max-w-28 text-xs text-muted-foreground">
+          Expired keys stay blocked until edited.
         </span>
       ) : null}
     </div>
   )
 }
 
-export function ApiKeyActions({ apiKey }: { apiKey: ApiKeySummary }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <ApiKeyRevealDialog apiKey={apiKey} />
-      <ApiKeyExpirationDialog apiKey={apiKey} />
-      <ApiKeyDeleteDialog apiKey={apiKey} />
-    </div>
-  )
-}
-
-function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
+export function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<ApiKeyDetail | null>(null)
   const [error, setError] = useState<unknown>(null)
@@ -160,9 +173,9 @@ function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <DialogTrigger render={<Button variant="ghost" size="sm" />}>
         <EyeIcon />
-        View key
+        View
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -205,42 +218,85 @@ function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
   )
 }
 
-const expirationSchema = z
+const editSchema = z
   .object({
+    label: z.string().trim().min(1, 'Name is required.'),
+    groupLabel: z.string().trim().min(1, 'Provider group is required.'),
     expiresAt: z.string(),
+    quotaLimitUsd: z.string(),
   })
   .superRefine((values, context) => {
-    if (!values.expiresAt) {
-      return
-    }
-
-    const timestamp = dateTimeLocalToTimestamp(values.expiresAt)
-    if (timestamp === null || timestamp <= Date.now() / 1000) {
+    if (new TextEncoder().encode(values.label).length > 128) {
       context.addIssue({
         code: 'custom',
-        path: ['expiresAt'],
-        message: 'Choose a future date and time or clear the expiration.',
+        path: ['label'],
+        message: 'Name must be 128 bytes or fewer.',
       })
+    }
+
+    if (values.expiresAt) {
+      const timestamp = dateTimeLocalToTimestamp(values.expiresAt)
+      if (timestamp === null || timestamp <= Date.now() / 1000) {
+        context.addIssue({
+          code: 'custom',
+          path: ['expiresAt'],
+          message: 'Choose a future date and time or clear the expiration.',
+        })
+      }
+    }
+
+    if (values.quotaLimitUsd.trim()) {
+      if (
+        !/^\d+(\.\d{1,14})?$/.test(values.quotaLimitUsd.trim()) ||
+        !/[1-9]/.test(values.quotaLimitUsd)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['quotaLimitUsd'],
+          message:
+            'Use a positive USD amount (e.g. 10 or 12.5) or leave empty for unlimited.',
+        })
+      }
     }
   })
 
-type ExpirationValues = z.infer<typeof expirationSchema>
+type EditValues = z.infer<typeof editSchema>
 
-function ApiKeyExpirationDialog({ apiKey }: { apiKey: ApiKeySummary }) {
+function ApiKeyEditDialog({ apiKey }: { apiKey: ApiKeySummary }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
-  const form = useForm<ExpirationValues>({
-    resolver: zodResolver(expirationSchema),
-    defaultValues: expirationDefaultValues(apiKey),
+  const providers = useQuery({
+    ...providersQueryOptions,
+    enabled: open,
+  })
+  const groupLabels = Array.from(
+    new Set(
+      (providers.data ?? [])
+        .filter((account) => account.enabled)
+        .map((account) => account.groupLabel.trim()),
+    ),
+  ).sort((left, right) => left.localeCompare(right))
+  const form = useForm<EditValues>({
+    resolver: zodResolver(editSchema),
+    defaultValues: editDefaultValues(apiKey),
   })
   const mutation = useMutation({
-    mutationFn: (expiresAt: number | null) =>
-      updateApiKey({ keyId: apiKey.id, expiresAt }),
+    mutationFn: (values: EditValues) =>
+      updateApiKey({
+        keyId: apiKey.id,
+        label: values.label,
+        groupLabel: values.groupLabel,
+        expiresAt: dateTimeLocalToTimestamp(values.expiresAt),
+        quotaLimitUsd: values.quotaLimitUsd.trim()
+          ? values.quotaLimitUsd.trim()
+          : null,
+      }),
     onSuccess: (updated) => {
       replaceListItem(queryClient, apiKeyKeys.all, updated)
       setOpen(false)
     },
   })
+  const busy = mutation.isPending
 
   function handleOpenChange(nextOpen: boolean) {
     if (mutation.isPending) {
@@ -249,7 +305,7 @@ function ApiKeyExpirationDialog({ apiKey }: { apiKey: ApiKeySummary }) {
 
     setOpen(nextOpen)
     if (nextOpen) {
-      form.reset(expirationDefaultValues(apiKey))
+      form.reset(editDefaultValues(apiKey))
       mutation.reset()
     }
   }
@@ -257,32 +313,80 @@ function ApiKeyExpirationDialog({ apiKey }: { apiKey: ApiKeySummary }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        <CalendarClockIcon />
-        Expiration
+        <PencilIcon />
+        Edit
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit expiration</DialogTitle>
+          <DialogTitle>Edit {apiKey.label}</DialogTitle>
           <DialogDescription>
-            Change when {apiKey.label} stops authenticating API requests.
+            Update the name, provider group, expiration, and estimated USD quota.
           </DialogDescription>
         </DialogHeader>
 
         {mutation.isError ? (
           <Alert variant="destructive">
             <CircleAlertIcon />
-            <AlertTitle>Unable to update expiration</AlertTitle>
+            <AlertTitle>Unable to update API key</AlertTitle>
             <AlertDescription>{errorMessage(mutation.error)}</AlertDescription>
           </Alert>
         ) : null}
 
         <form
-          id={`api-key-expiration-${apiKey.id}`}
-          onSubmit={form.handleSubmit((values) =>
-            mutation.mutate(dateTimeLocalToTimestamp(values.expiresAt)),
-          )}
+          id={`api-key-edit-${apiKey.id}`}
+          onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
         >
           <FieldGroup>
+            <Field data-invalid={Boolean(form.formState.errors.label)}>
+              <FieldLabel htmlFor={`api-key-name-${apiKey.id}`}>Name</FieldLabel>
+              <Input
+                id={`api-key-name-${apiKey.id}`}
+                autoComplete="off"
+                disabled={busy}
+                aria-invalid={Boolean(form.formState.errors.label)}
+                {...form.register('label')}
+              />
+              <FieldDescription>
+                Use a name that identifies the client or environment.
+              </FieldDescription>
+              <FieldError errors={[form.formState.errors.label]} />
+            </Field>
+
+            <Field data-invalid={Boolean(form.formState.errors.groupLabel)}>
+              <FieldLabel htmlFor={`api-key-group-${apiKey.id}`}>
+                Provider group
+              </FieldLabel>
+              <NativeSelect
+                id={`api-key-group-${apiKey.id}`}
+                className="w-full"
+                disabled={busy || providers.isPending}
+                aria-invalid={Boolean(form.formState.errors.groupLabel)}
+                {...form.register('groupLabel')}
+              >
+                <NativeSelectOption value="">
+                  {providers.isPending
+                    ? 'Loading groups…'
+                    : groupLabels.length
+                      ? 'Select a group'
+                      : 'No groups available'}
+                </NativeSelectOption>
+                {groupLabels.map((groupLabel) => (
+                  <NativeSelectOption key={groupLabel} value={groupLabel}>
+                    {groupLabel}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+              <FieldDescription>
+                Uses provider accounts that share this group label.
+              </FieldDescription>
+              <FieldError errors={[form.formState.errors.groupLabel]} />
+              {providers.isError ? (
+                <p role="alert" className="text-xs text-destructive">
+                  Unable to load provider accounts.
+                </p>
+              ) : null}
+            </Field>
+
             <Field data-invalid={Boolean(form.formState.errors.expiresAt)}>
               <FieldLabel htmlFor={`api-key-expiry-${apiKey.id}`}>
                 Expiration
@@ -295,15 +399,31 @@ function ApiKeyExpirationDialog({ apiKey }: { apiKey: ApiKeySummary }) {
                     id={`api-key-expiry-${apiKey.id}`}
                     value={field.value}
                     onChange={field.onChange}
-                    disabled={mutation.isPending}
+                    disabled={busy}
                     invalid={Boolean(form.formState.errors.expiresAt)}
                   />
                 )}
               />
               <FieldDescription>
-                Leave empty for a key that never expires. Times use this browser&apos;s local timezone.
+                Leave empty for a key that never expires.
               </FieldDescription>
               <FieldError errors={[form.formState.errors.expiresAt]} />
+            </Field>
+
+            <Field data-invalid={Boolean(form.formState.errors.quotaLimitUsd)}>
+              <FieldLabel htmlFor={`api-key-quota-${apiKey.id}`}>
+                Quota limit (USD)
+              </FieldLabel>
+              <Input
+                id={`api-key-quota-${apiKey.id}`}
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="Unlimited"
+                disabled={busy}
+                aria-invalid={Boolean(form.formState.errors.quotaLimitUsd)}
+                {...form.register('quotaLimitUsd')}
+              />
+              <FieldError errors={[form.formState.errors.quotaLimitUsd]} />
             </Field>
           </FieldGroup>
         </form>
@@ -312,13 +432,13 @@ function ApiKeyExpirationDialog({ apiKey }: { apiKey: ApiKeySummary }) {
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button
             type="submit"
-            form={`api-key-expiration-${apiKey.id}`}
-            disabled={mutation.isPending}
+            form={`api-key-edit-${apiKey.id}`}
+            disabled={busy}
           >
             {mutation.isPending ? (
               <Loader2Icon className="animate-spin" />
             ) : null}
-            Save expiration
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -353,7 +473,9 @@ function ApiKeyDeleteDialog({ apiKey }: { apiKey: ApiKeySummary }) {
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger
-        render={<Button variant="ghost" size="sm" className="text-destructive" />}
+        render={
+          <Button variant="ghost" size="sm" className="text-destructive" />
+        }
       >
         <Trash2Icon />
         Delete
@@ -395,10 +517,22 @@ function ApiKeyDeleteDialog({ apiKey }: { apiKey: ApiKeySummary }) {
   )
 }
 
-function expirationDefaultValues(apiKey: ApiKeySummary): ExpirationValues {
+function editDefaultValues(apiKey: ApiKeySummary): EditValues {
   return {
+    label: apiKey.label,
+    groupLabel: apiKey.groupLabel,
     expiresAt: toDateTimeLocalValue(apiKey.expiresAt),
+    quotaLimitUsd: compactUsd(apiKey.quotaLimitUsd),
   }
+}
+
+function compactUsd(value: string | null): string {
+  if (!value) {
+    return ''
+  }
+  const [whole, fraction = ''] = value.split('.')
+  const trimmedFraction = fraction.replace(/0+$/, '')
+  return trimmedFraction ? `${whole}.${trimmedFraction}` : whole
 }
 
 function errorMessage(error: unknown): string {

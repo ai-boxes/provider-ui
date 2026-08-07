@@ -1,13 +1,5 @@
 import type { ApiKeySummary } from '@/features/api-keys/api-key-types'
-
-const dateFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-})
-
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
+import { formatUnixSeconds } from '@/lib/datetime'
 
 export type ApiKeyStatus = 'active' | 'disabled' | 'expired'
 
@@ -23,11 +15,11 @@ export function getApiKeyStatus(
 }
 
 export function formatApiKeyDate(timestamp: number): string {
-  return dateFormatter.format(new Date(timestamp * 1000))
+  return formatUnixSeconds(timestamp)
 }
 
 export function formatApiKeyDateTime(timestamp: number): string {
-  return dateTimeFormatter.format(new Date(timestamp * 1000))
+  return formatUnixSeconds(timestamp)
 }
 
 export function toDateTimeLocalValue(timestamp: number | null): string {

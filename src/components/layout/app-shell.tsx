@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   BoxesIcon,
   ChartNoAxesColumnIcon,
-  ChevronsUpDownIcon,
   KeyRoundIcon,
   LogOutIcon,
   UsersIcon,
@@ -10,6 +9,7 @@ import {
 import { NavLink, Outlet, useLocation } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,6 @@ import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -77,16 +76,19 @@ export function AppShell() {
   return (
     <SidebarProvider>
       <AppSidebar user={authState.session.user} />
-      <SidebarInset className="min-w-0 overflow-hidden">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur-sm sm:px-6">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-4" />
-          <h1 className="text-sm font-semibold tracking-tight">
-            {getPageTitle(location.pathname)}
-          </h1>
+      <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
+        <header className="z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background/90 px-4 backdrop-blur-sm sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="h-4" />
+            <h1 className="truncate text-sm font-semibold tracking-tight">
+              {getPageTitle(location.pathname)}
+            </h1>
+          </div>
+          <UserMenu user={authState.session.user} />
         </header>
-        <div className="flex flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="mx-auto flex w-full max-w-7xl flex-col pb-8">
             <Outlet />
           </div>
         </div>
@@ -153,9 +155,6 @@ function AppSidebar({ user }: { user: AuthUser }) {
         ) : null}
       </SidebarContent>
 
-      <SidebarFooter className="pb-3">
-        <UserMenu user={user} />
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
@@ -201,7 +200,6 @@ function NavigationMenu({
 }
 
 function UserMenu({ user }: { user: AuthUser }) {
-  const { isMobile } = useSidebar()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   async function handleLogout() {
@@ -219,65 +217,55 @@ function UserMenu({ user }: { user: AuthUser }) {
   }
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton
-                size="lg"
-                className="data-open:bg-sidebar-accent data-popup-open:bg-sidebar-accent"
-              />
-            }
-          >
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`Open account menu for ${user.username}`}
+        className={buttonVariants({
+          variant: 'ghost',
+          size: 'icon',
+          className:
+            'rounded-full data-open:bg-muted data-popup-open:bg-muted',
+        })}
+      >
+        <Avatar size="default">
+          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+            {getUserInitial(user.username)}
+          </AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="bottom"
+        align="end"
+        sideOffset={8}
+        className="w-56 min-w-56"
+      >
+        <DropdownMenuLabel className="p-2 font-normal">
+          <div className="flex items-center gap-2">
             <Avatar className="rounded-lg" size="default">
-              <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <AvatarFallback className="rounded-lg">
                 {getUserInitial(user.username)}
               </AvatarFallback>
             </Avatar>
-            <span className="grid flex-1 text-left leading-tight">
-              <span className="truncate font-medium">{user.username}</span>
-              <span className="truncate text-xs text-sidebar-foreground/60">
+            <div className="grid min-w-0 flex-1 leading-tight">
+              <span className="truncate text-sm font-medium text-foreground">
+                {user.username}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
                 {formatRole(user.role)}
               </span>
-            </span>
-            <ChevronsUpDownIcon className="ml-auto size-4 text-sidebar-foreground/60" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side={isMobile ? 'bottom' : 'top'}
-            align="end"
-            sideOffset={8}
-            className="w-56 min-w-56"
-          >
-            <DropdownMenuLabel className="p-2 font-normal">
-              <div className="flex items-center gap-2">
-                <Avatar className="rounded-lg" size="default">
-                  <AvatarFallback className="rounded-lg">
-                    {getUserInitial(user.username)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid min-w-0 flex-1 leading-tight">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {user.username}
-                  </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {formatRole(user.role)}
-                  </span>
-                </div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={isLoggingOut}
-              onClick={() => void handleLogout()}
-            >
-              <LogOutIcon />
-              {isLoggingOut ? 'Logging out…' : 'Log out'}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+            </div>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={isLoggingOut}
+          onClick={() => void handleLogout()}
+        >
+          <LogOutIcon />
+          {isLoggingOut ? 'Logging out…' : 'Log out'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

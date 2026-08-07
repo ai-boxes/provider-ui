@@ -9,6 +9,7 @@ import {
   decodeProviderModels,
   decodeProviderModelCatalogSnapshot,
   decodeProviderOAuthSession,
+  decodeProviderHealth,
   decodeProviderQuota,
 } from '@/features/providers/provider-decoders'
 import type {
@@ -20,6 +21,7 @@ import type {
   ProviderModel,
   ProviderModelCatalogSnapshot,
   ProviderOAuthSession,
+  ProviderHealthSnapshot,
   ProviderQuota,
   SetProviderEnabledInput,
   StartProviderOAuthInput,
@@ -42,6 +44,13 @@ export function getProviderAccount(accountId: string): Promise<ProviderAccount> 
   return requestAuthenticatedData(
     providerEndpoint(accountId),
     decodeProviderAccount,
+  )
+}
+
+export function getProviderHealth(): Promise<ProviderHealthSnapshot> {
+  return requestAuthenticatedData(
+    '/api/v1/providers/health',
+    decodeProviderHealth,
   )
 }
 
@@ -80,8 +89,9 @@ export function createCompatibleProvider(
         method: 'direct',
         provider: input.provider,
         label: input.label,
+        group_label: input.groupLabel,
         base_url: input.baseUrl,
-        api_key: input.apiKey || undefined,
+        api_key: input.apiKey,
         visibility: input.visibility,
       }),
     },
@@ -101,6 +111,7 @@ export function importOAuthProvider(
         method: 'credential_json',
         provider: input.provider,
         label: input.label,
+        group_label: input.groupLabel,
         credential_json: input.credentialJson,
         visibility: input.visibility,
       }),
@@ -120,6 +131,7 @@ export function startProviderOAuth(
       body: JSON.stringify({
         provider: input.provider,
         label: input.label,
+        group_label: input.groupLabel,
         visibility: input.visibility,
       }),
     },
@@ -156,8 +168,12 @@ export function updateProviderAccount(
       headers: jsonHeaders,
       body: JSON.stringify({
         label: input.label,
+        group_label: input.groupLabel,
         visibility: input.visibility,
         base_url: input.baseUrl,
+        ...(input.apiKey?.trim()
+          ? { api_key: input.apiKey.trim() }
+          : {}),
       }),
     },
   )

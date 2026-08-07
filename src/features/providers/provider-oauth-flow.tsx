@@ -38,11 +38,8 @@ import type {
   ProviderOAuthSession,
 } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
+import { formatUnixSeconds } from '@/lib/datetime'
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function ProviderOAuthFlow({
   sessionId,
@@ -326,5 +323,5 @@ function OAuthSessionError({
 }
 
 function formatTimestamp(timestamp: number): string {
-  return dateTimeFormatter.format(new Date(timestamp * 1000))
+  return formatUnixSeconds(timestamp)
 }

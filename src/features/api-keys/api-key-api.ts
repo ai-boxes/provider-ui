@@ -41,8 +41,10 @@ export function createApiKey(input: CreateApiKeyInput): Promise<ApiKeyDetail> {
     headers: jsonHeaders,
     body: JSON.stringify({
       label: input.label,
+      group_label: input.groupLabel,
       key: input.key,
       expires_at: input.expiresAt,
+      quota_limit_usd: input.quotaLimitUsd,
     }),
   })
 }
@@ -52,8 +54,11 @@ export function updateApiKey(input: UpdateApiKeyInput): Promise<ApiKeySummary> {
     method: 'PUT',
     headers: jsonHeaders,
     body: JSON.stringify({
+      label: input.label,
+      group_label: input.groupLabel,
       enabled: input.enabled,
       expires_at: input.expiresAt,
+      quota_limit_usd: input.quotaLimitUsd,
     }),
   })
 }

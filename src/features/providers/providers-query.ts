@@ -3,6 +3,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   getProviderAccount,
   getProviderAccounts,
+  getProviderHealth,
   getProviderModels,
   getProviderOAuthSession,
   getProviderQuota,
@@ -14,6 +15,7 @@ export const providerKeys = {
   models: (accountId: string) =>
     ['providers', accountId, 'models'] as const,
   quota: (accountId: string) => ['providers', accountId, 'quota'] as const,
+  health: () => ['providers', 'health'] as const,
   oauthSession: (sessionId: string) =>
     ['provider-oauth-session', sessionId] as const,
 }
@@ -41,6 +43,14 @@ export function providerQuotaQueryOptions(accountId: string) {
   return queryOptions({
     queryKey: providerKeys.quota(accountId),
     queryFn: () => getProviderQuota(accountId),
+  })
+}
+
+export function providerHealthQueryOptions() {
+  return queryOptions({
+    queryKey: providerKeys.health(),
+    queryFn: getProviderHealth,
+    staleTime: 30_000,
   })
 }
 

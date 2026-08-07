@@ -29,7 +29,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -53,15 +52,27 @@ import {
   setProviderEnabled,
   updateProviderAccount,
 } from '@/features/providers/provider-api'
-import { isOAuthProvider } from '@/features/providers/provider-format'
+import {
+  isCompatibleProvider,
+  isOAuthProvider,
+} from '@/features/providers/provider-format'
 import { providerKeys } from '@/features/providers/providers-query'
 import type { ProviderAccount } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
 
 const accountEditBaseSchema = z.object({
   label: z.string().trim().min(1, 'Label is required.'),
+  groupLabel: z
+    .string()
+    .trim()
+    .min(1, 'Provider group is required.')
+    .refine(
+      (value) => [...value].length <= 64,
+      'Provider group must be 64 characters or fewer.',
+    ),
   visibility: z.enum(['private', 'shared']),
   baseUrl: z.string().trim(),
+  apiKey: z.string(),
 })
 
 type AccountEditValues = z.infer<typeof accountEditBaseSchema>
@@ -151,7 +162,7 @@ export function ProviderEnabledControl({
   )
 }
 
-function ProviderEditDialog({ account }: { account: ProviderAccount }) {
+export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
   const schema = useMemo(
@@ -174,6 +185,8 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
     resolver: zodResolver(schema),
     defaultValues: editDefaultValues(account),
   })
+  const formId = `provider-edit-form-${account.id}`
+  const fieldId = (name: string) => `provider-edit-${name}-${account.id}`
   const updateAccount = useMutation({
     mutationFn: updateProviderAccount,
     onSuccess: (updated) => {
@@ -213,9 +226,6 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Provider</DialogTitle>
-          <DialogDescription>
-            Update account metadata. Credentials are managed separately.
-          </DialogDescription>
         </DialogHeader>
 
         {updateAccount.isError ? (
@@ -226,23 +236,27 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
         ) : null}
 
         <form
-          id="provider-edit-form"
+          id={formId}
           onSubmit={form.handleSubmit((values) =>
             updateAccount.mutate({
               accountId: account.id,
               label: values.label,
+              groupLabel: values.groupLabel,
               visibility: values.visibility,
               baseUrl: isOAuthProvider(account.provider)
                 ? undefined
                 : values.baseUrl,
+              apiKey: isCompatibleProvider(account.provider)
+                ? values.apiKey
+                : undefined,
             }),
           )}
         >
           <FieldGroup>
             <Field data-invalid={Boolean(form.formState.errors.label)}>
-              <FieldLabel htmlFor="provider-edit-label">Label</FieldLabel>
+              <FieldLabel htmlFor={fieldId('label')}>Label</FieldLabel>
               <Input
-                id="provider-edit-label"
+                id={fieldId('label')}
                 disabled={updateAccount.isPending}
                 aria-invalid={Boolean(form.formState.errors.label)}
                 {...form.register('label')}
@@ -250,12 +264,28 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
               <FieldError errors={[form.formState.errors.label]} />
             </Field>
 
+            <Field data-invalid={Boolean(form.formState.errors.groupLabel)}>
+              <FieldLabel htmlFor={fieldId('group-label')}>
+                Provider group
+              </FieldLabel>
+              <Input
+                id={fieldId('group-label')}
+                disabled={updateAccount.isPending}
+                aria-invalid={Boolean(form.formState.errors.groupLabel)}
+                {...form.register('groupLabel')}
+              />
+              <FieldDescription>
+                API keys select this label to route through matching accounts.
+              </FieldDescription>
+              <FieldError errors={[form.formState.errors.groupLabel]} />
+            </Field>
+
             <Field data-invalid={Boolean(form.formState.errors.visibility)}>
-              <FieldLabel htmlFor="provider-edit-visibility">
+              <FieldLabel htmlFor={fieldId('visibility')}>
                 Visibility
               </FieldLabel>
               <NativeSelect
-                id="provider-edit-visibility"
+                id={fieldId('visibility')}
                 className="w-full"
                 disabled={updateAccount.isPending}
                 aria-invalid={Boolean(form.formState.errors.visibility)}
@@ -273,17 +303,33 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
 
             {!isOAuthProvider(account.provider) ? (
               <Field data-invalid={Boolean(form.formState.errors.baseUrl)}>
-                <FieldLabel htmlFor="provider-edit-base-url">
+                <FieldLabel htmlFor={fieldId('base-url')}>
                   Base URL
                 </FieldLabel>
                 <Input
-                  id="provider-edit-base-url"
+                  id={fieldId('base-url')}
                   type="url"
                   disabled={updateAccount.isPending}
                   aria-invalid={Boolean(form.formState.errors.baseUrl)}
                   {...form.register('baseUrl')}
                 />
                 <FieldError errors={[form.formState.errors.baseUrl]} />
+              </Field>
+            ) : null}
+
+            {isCompatibleProvider(account.provider) ? (
+              <Field data-invalid={Boolean(form.formState.errors.apiKey)}>
+                <FieldLabel htmlFor={fieldId('api-key')}>API Key</FieldLabel>
+                <Input
+                  id={fieldId('api-key')}
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Leave blank to keep current"
+                  disabled={updateAccount.isPending}
+                  aria-invalid={Boolean(form.formState.errors.apiKey)}
+                  {...form.register('apiKey')}
+                />
+                <FieldError errors={[form.formState.errors.apiKey]} />
               </Field>
             ) : null}
           </FieldGroup>
@@ -295,7 +341,7 @@ function ProviderEditDialog({ account }: { account: ProviderAccount }) {
           </DialogClose>
           <Button
             type="submit"
-            form="provider-edit-form"
+            form={formId}
             disabled={updateAccount.isPending}
           >
             {updateAccount.isPending ? (
@@ -407,8 +453,10 @@ function MutationError({
 function editDefaultValues(account: ProviderAccount): AccountEditValues {
   return {
     label: account.label,
+    groupLabel: account.groupLabel,
     visibility: account.visibility,
     baseUrl: account.baseUrl ?? '',
+    apiKey: '',
   }
 }
 

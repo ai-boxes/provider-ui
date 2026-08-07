@@ -51,9 +51,13 @@ import {
   ProviderModelRefreshControl,
 } from '@/features/providers/provider-model-management'
 import { formatProviderKind } from '@/features/providers/provider-format'
+import {
+  ProviderHealthCard,
+} from '@/features/providers/provider-health'
 import { ProviderQuotaCard } from '@/features/providers/provider-quota'
 import {
   providerModelsQueryOptions,
+  providerHealthQueryOptions,
   providerQueryOptions,
 } from '@/features/providers/providers-query'
 import type {
@@ -63,11 +67,8 @@ import type {
 } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
 import { cn } from '@/lib/utils'
+import { formatUnixSeconds } from '@/lib/datetime'
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function ProviderDetail({
   accountId,
@@ -77,6 +78,7 @@ export function ProviderDetail({
   currentUserId: string
 }) {
   const account = useQuery(providerQueryOptions(accountId))
+  const providerHealth = useQuery(providerHealthQueryOptions())
   const models = useQuery({
     ...providerModelsQueryOptions(accountId),
     enabled: account.isSuccess,
@@ -96,6 +98,9 @@ export function ProviderDetail({
   }
 
   const ownedByCurrentUser = account.data.ownerUserId === currentUserId
+  const health = providerHealth.data?.accounts.find(
+    (item) => item.accountId === accountId,
+  ) ?? (providerHealth.isError ? null : undefined)
 
   return (
     <section className="flex flex-1 flex-col gap-6">
@@ -144,11 +149,12 @@ export function ProviderDetail({
         </Alert>
       ) : null}
 
-      <ProviderQuotaCard accountId={accountId} />
       <ProviderOverview
         account={account.data}
         ownedByCurrentUser={ownedByCurrentUser}
       />
+      <ProviderHealthCard health={health} />
+      <ProviderQuotaCard accountId={accountId} />
       <ProviderModels
         models={models.data}
         pending={models.isPending}
@@ -401,34 +407,22 @@ function DetailField({
 }
 
 function AccountStatusBadge({ account }: { account: ProviderAccount }) {
-  if (!account.enabled) {
-    return (
-      <Badge variant="outline" className="gap-1.5 text-muted-foreground">
-        <CircleOffIcon />
-        Disabled
-      </Badge>
-    )
-  }
-
-  if (account.authState === 'reauth_required' || account.safeErrorCode) {
+  if (account.enabled) {
     return (
       <Badge
         variant="outline"
-        className="gap-1.5 border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+        className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
       >
-        <CircleAlertIcon />
-        Attention required
+        <CircleCheckIcon />
+        Activated
       </Badge>
     )
   }
 
   return (
-    <Badge
-      variant="outline"
-      className="gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-    >
-      <CircleCheckIcon />
-      Active
+    <Badge variant="outline" className="gap-1.5 text-muted-foreground">
+      <CircleOffIcon />
+      Disabled
     </Badge>
   )
 }
@@ -585,14 +579,13 @@ function formatCredentialKind(kind: ProviderCredentialKind): string {
   const labels: Record<ProviderCredentialKind, string> = {
     oauth: 'OAuth',
     api_key: 'API key',
-    none: 'No authentication',
   }
 
   return labels[kind]
 }
 
 function formatTimestamp(timestamp: number): string {
-  return dateTimeFormatter.format(new Date(timestamp * 1000))
+  return formatUnixSeconds(timestamp)
 }
 
 function formatModelCount(count: number): string {

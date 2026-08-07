@@ -9,12 +9,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { formatDateTime } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
-
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function ApiKeyExpirationField({
   id,
@@ -74,7 +70,7 @@ export function ApiKeyExpirationField({
         }
       >
         <CalendarIcon />
-        {selected ? dateTimeFormatter.format(selected) : 'Never expires'}
+        {selected ? formatDateTime(selected) : 'Never expires'}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto gap-0 p-0">
         <Calendar

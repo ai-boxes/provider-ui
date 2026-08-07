@@ -6,7 +6,7 @@ export type ProviderKind =
 
 export type ProviderVisibility = 'private' | 'shared'
 
-export type ProviderCredentialKind = 'oauth' | 'api_key' | 'none'
+export type ProviderCredentialKind = 'oauth' | 'api_key'
 
 export type ProviderAuthState = 'active' | 'reauth_required'
 
@@ -28,6 +28,7 @@ export type ProviderAccount = {
   visibility: ProviderVisibility
   provider: ProviderKind
   label: string
+  groupLabel: string
   baseUrl: string | null
   credentialKind: ProviderCredentialKind
   enabled: boolean
@@ -117,6 +118,19 @@ export type ProviderAccountWithQuota = ProviderAccount & {
   quota: ProviderQuota
 }
 
+export type ProviderHealthAccount = {
+  accountId: string
+  requests: number
+  successes: number
+  failures: number
+}
+
+export type ProviderHealthSnapshot = {
+  fromMs: number
+  toMs: number
+  accounts: ProviderHealthAccount[]
+}
+
 export type ProviderModel = {
   accountId: string
   upstreamModel: string
@@ -153,6 +167,7 @@ export type ProviderOAuthSession = {
   provider: OAuthProviderKind
   accountId: string
   label: string
+  groupLabel: string
   status: ProviderOAuthStatus
   challenge: {
     verificationUri: string
@@ -166,13 +181,14 @@ export type ProviderOAuthSession = {
 
 export type CreateProviderBaseInput = {
   label: string
+  groupLabel: string
   visibility: ProviderVisibility
 }
 
 export type CreateCompatibleProviderInput = CreateProviderBaseInput & {
   provider: CompatibleProviderKind
   baseUrl: string
-  apiKey?: string
+  apiKey: string
 }
 
 export type ImportOAuthProviderInput = CreateProviderBaseInput & {
@@ -185,10 +201,12 @@ export type StartProviderOAuthInput = CreateProviderBaseInput & {
 }
 
 export type UpdateProviderAccountInput = {
+  groupLabel: string
   accountId: string
   label: string
   visibility: ProviderVisibility
   baseUrl?: string
+  apiKey?: string
 }
 
 export type SetProviderEnabledInput = {
