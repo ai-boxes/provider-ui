@@ -4,6 +4,7 @@ import {
 } from '@/features/auth/auth-decoders'
 import type {
   AuthSession,
+  RegistrationCredentials,
   UserCredentials,
 } from '@/features/auth/auth-types'
 import { requestData } from '@/lib/api/client'
@@ -31,6 +32,20 @@ export function login(credentials: UserCredentials): Promise<AuthSession> {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify(credentials),
+  })
+}
+
+export function register(
+  credentials: RegistrationCredentials,
+): Promise<AuthSession> {
+  return requestData('/api/v1/auth/register', decodeAuthSession, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({
+      username: credentials.username,
+      password: credentials.password,
+      invitation_code: credentials.invitationCode,
+    }),
   })
 }
 

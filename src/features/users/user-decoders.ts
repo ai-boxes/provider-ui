@@ -1,5 +1,8 @@
 import { authUserRoles } from '@/features/auth/auth-decoders'
-import type { ManagedUser } from '@/features/users/user-types'
+import type {
+  CreatedRegistrationCode,
+  ManagedUser,
+} from '@/features/users/user-types'
 import {
   requireArray,
   requireBoolean,
@@ -13,6 +16,20 @@ export function decodeManagedUsers(value: unknown): ManagedUser[] {
   return requireArray(value, 'users').map((user, index) =>
     decodeManagedUser(user, `user ${index + 1}`),
   )
+}
+
+export function decodeCreatedRegistrationCode(
+  value: unknown,
+): CreatedRegistrationCode {
+  const record = requireRecord(value, 'registration code')
+
+  return {
+    code: requireNonEmptyString(record.code, 'registration code'),
+    expiresAt: requireTimestamp(
+      record.expires_at,
+      'registration code expiration',
+    ),
+  }
 }
 
 export function decodeManagedUser(

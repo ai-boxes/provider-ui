@@ -27,6 +27,7 @@ import {
   UserActions,
   UserEnabledControl,
 } from '@/features/users/user-actions'
+import { RegistrationCodeCreateDialog } from '@/features/users/registration-code-create'
 import { UserCreateDialog } from '@/features/users/user-create'
 import {
   formatUserDate,
@@ -46,7 +47,12 @@ export function UserList() {
       <PageHeader
         title="Users"
         description="Manage who can sign in to this control plane. Provider access continues to follow ownership and visibility rules."
-        actions={<UserCreateDialog />}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <RegistrationCodeCreateDialog />
+            <UserCreateDialog />
+          </div>
+        }
       />
 
       {users.isPending ? <UserListLoading /> : null}

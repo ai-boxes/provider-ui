@@ -19,31 +19,35 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { login, setupInitialUser } from '@/features/auth/auth-api'
+import { login, register, setupInitialUser } from '@/features/auth/auth-api'
 import type {
   AuthSession,
-  UserCredentials,
+  RegistrationCredentials,
 } from '@/features/auth/auth-types'
 import { ApiError } from '@/lib/api/error'
 
-type CredentialsMode = 'login' | 'setup'
-type CredentialField = keyof UserCredentials
+type CredentialsMode = 'login' | 'register' | 'setup'
+type CredentialInput = RegistrationCredentials
+type CredentialField = keyof CredentialInput
 type CredentialErrors = Partial<Record<CredentialField, string>>
 
 type CredentialsFormProps = {
   mode: CredentialsMode
   onSuccess: (session: AuthSession) => void
+  onModeChange?: (mode: 'login' | 'register') => void
   onSetupConflict?: () => void
 }
 
 export function CredentialsForm({
   mode,
   onSuccess,
+  onModeChange,
   onSetupConflict,
 }: CredentialsFormProps) {
   const [fieldErrors, setFieldErrors] = useState<CredentialErrors>({})
   const mutation = useMutation({
-    mutationFn: mode === 'setup' ? setupInitialUser : login,
+    mutationFn: (credentials: CredentialInput) =>
+      submitCredentials(mode, credentials),
     onSuccess,
     onError: (error) => {
       if (mode === 'setup' && isSetupConflict(error)) {
@@ -60,6 +64,7 @@ export function CredentialsForm({
     const credentials = {
       username: String(formData.get('username') ?? '').trim(),
       password: String(formData.get('password') ?? ''),
+      invitationCode: String(formData.get('invitationCode') ?? '').trim(),
     }
     const nextErrors = validateCredentials(credentials, mode)
 
@@ -89,9 +94,24 @@ export function CredentialsForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          <h1>{content.title}</h1>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-4">
+          <CardTitle>
+            <h1>{content.title}</h1>
+          </CardTitle>
+          {mode !== 'setup' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0"
+              onClick={() =>
+                onModeChange?.(mode === 'login' ? 'register' : 'login')
+              }
+            >
+              {mode === 'login' ? 'Register' : 'Sign in'}
+            </Button>
+          ) : null}
+        </div>
         <CardDescription>{content.description}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -133,15 +153,15 @@ export function CredentialsForm({
                 name="password"
                 type="password"
                 autoComplete={
-                  mode === 'setup' ? 'new-password' : 'current-password'
+                  mode === 'login' ? 'current-password' : 'new-password'
                 }
                 aria-invalid={Boolean(fieldErrors.password)}
                 aria-describedby={passwordDescriptionId(mode, fieldErrors)}
                 disabled={mutation.isPending}
                 onChange={() => handleFieldChange('password')}
               />
-              {mode === 'setup' && !fieldErrors.password ? (
-                <FieldDescription id="setup-password-description">
+              {mode !== 'login' && !fieldErrors.password ? (
+                <FieldDescription id={`${mode}-password-description`}>
                   Use at least 6 characters.
                 </FieldDescription>
               ) : null}
@@ -149,6 +169,33 @@ export function CredentialsForm({
                 {fieldErrors.password}
               </FieldError>
             </Field>
+
+            {mode === 'register' ? (
+              <Field data-invalid={Boolean(fieldErrors.invitationCode)}>
+                <FieldLabel htmlFor="register-invitation-code">
+                  Invitation code
+                </FieldLabel>
+                <Input
+                  id="register-invitation-code"
+                  name="invitationCode"
+                  type="text"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  aria-invalid={Boolean(fieldErrors.invitationCode)}
+                  aria-describedby={
+                    fieldErrors.invitationCode
+                      ? 'register-invitation-code-error'
+                      : undefined
+                  }
+                  disabled={mutation.isPending}
+                  onChange={() => handleFieldChange('invitationCode')}
+                />
+                <FieldError id="register-invitation-code-error">
+                  {fieldErrors.invitationCode}
+                </FieldError>
+              </Field>
+            ) : null}
 
             <Button
               type="submit"
@@ -167,24 +214,35 @@ export function CredentialsForm({
 }
 
 function formContent(mode: CredentialsMode) {
-  return mode === 'setup'
-    ? {
-        title: 'Create administrator account',
-        description:
-          'Set up the first super administrator for this provider gateway.',
-        submitLabel: 'Create account',
-        pendingLabel: 'Creating account',
-      }
-    : {
-        title: 'Sign in',
-        description: 'Enter your credentials to manage the provider gateway.',
-        submitLabel: 'Sign in',
-        pendingLabel: 'Signing in',
-      }
+  if (mode === 'setup') {
+    return {
+      title: 'Create administrator account',
+      description:
+        'Set up the first super administrator for this provider gateway.',
+      submitLabel: 'Create account',
+      pendingLabel: 'Creating account',
+    }
+  }
+
+  if (mode === 'register') {
+    return {
+      title: 'Create account',
+      description: 'Choose a username and password to access the gateway.',
+      submitLabel: 'Register',
+      pendingLabel: 'Creating account',
+    }
+  }
+
+  return {
+    title: 'Sign in',
+    description: 'Enter your credentials to manage the provider gateway.',
+    submitLabel: 'Sign in',
+    pendingLabel: 'Signing in',
+  }
 }
 
 function validateCredentials(
-  credentials: UserCredentials,
+  credentials: CredentialInput,
   mode: CredentialsMode,
 ): CredentialErrors {
   const errors: CredentialErrors = {}
@@ -197,10 +255,14 @@ function validateCredentials(
 
   if (credentials.password.length === 0) {
     errors.password = 'Enter your password.'
-  } else if (mode === 'setup' && [...credentials.password].length < 6) {
+  } else if (mode !== 'login' && [...credentials.password].length < 6) {
     errors.password = 'Password must contain at least 6 characters.'
   } else if (new TextEncoder().encode(credentials.password).length > 1024) {
     errors.password = 'Password must not exceed 1024 bytes.'
+  }
+
+  if (mode === 'register' && credentials.invitationCode.length === 0) {
+    errors.invitationCode = 'Enter your invitation code.'
   }
 
   return errors
@@ -214,7 +276,7 @@ function passwordDescriptionId(
     return `${mode}-password-error`
   }
 
-  return mode === 'setup' ? 'setup-password-description' : undefined
+  return mode === 'login' ? undefined : `${mode}-password-description`
 }
 
 function isSetupConflict(error: unknown): boolean {
@@ -234,6 +296,14 @@ function submissionErrorMessage(
       return 'Initial setup has already been completed.'
     }
 
+    if (mode === 'register' && error.status === 409) {
+      return 'That username is already in use.'
+    }
+
+    if (mode === 'register' && error.status === 400) {
+      return error.message
+    }
+
     if (error.status === 400) {
       return 'Check the entered values and try again.'
     }
@@ -244,4 +314,24 @@ function submissionErrorMessage(
   }
 
   return 'Unable to complete the request. Check your connection and try again.'
+}
+
+async function submitCredentials(
+  mode: CredentialsMode,
+  credentials: CredentialInput,
+): Promise<AuthSession> {
+  const userCredentials = {
+    username: credentials.username,
+    password: credentials.password,
+  }
+
+  if (mode === 'setup') {
+    return setupInitialUser(userCredentials)
+  }
+
+  if (mode === 'register') {
+    return register(credentials)
+  }
+
+  return login(userCredentials)
 }
