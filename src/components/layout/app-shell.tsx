@@ -13,6 +13,7 @@ import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -57,14 +58,6 @@ const primaryNavigation = [
   },
 ] as const
 
-const adminNavigation = [
-  {
-    label: 'Users',
-    href: '/users',
-    icon: UsersIcon,
-  },
-] as const
-
 export function AppShell() {
   const authState = useAuthState()
   const location = useLocation()
@@ -75,7 +68,7 @@ export function AppShell() {
 
   return (
     <SidebarProvider>
-      <AppSidebar user={authState.session.user} />
+      <AppSidebar />
       <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
         <header className="z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background/90 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -97,7 +90,7 @@ export function AppShell() {
   )
 }
 
-function AppSidebar({ user }: { user: AuthUser }) {
+function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar()
 
   function closeMobileSidebar() {
@@ -141,18 +134,6 @@ function AppSidebar({ user }: { user: AuthUser }) {
             />
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {user.role === 'super_admin' ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>Administration</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <NavigationMenu
-                items={adminNavigation}
-                onNavigate={closeMobileSidebar}
-              />
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
       </SidebarContent>
 
       <SidebarRail />
@@ -239,24 +220,35 @@ function UserMenu({ user }: { user: AuthUser }) {
         sideOffset={8}
         className="w-56 min-w-56"
       >
-        <DropdownMenuLabel className="p-2 font-normal">
-          <div className="flex items-center gap-2">
-            <Avatar className="rounded-lg" size="default">
-              <AvatarFallback className="rounded-lg">
-                {getUserInitial(user.username)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="grid min-w-0 flex-1 leading-tight">
-              <span className="truncate text-sm font-medium text-foreground">
-                {user.username}
-              </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {formatRole(user.role)}
-              </span>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="p-2 font-normal">
+            <div className="flex items-center gap-2">
+              <Avatar className="rounded-lg" size="default">
+                <AvatarFallback className="rounded-lg">
+                  {getUserInitial(user.username)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid min-w-0 flex-1 leading-tight">
+                <span className="truncate text-sm font-medium text-foreground">
+                  {user.username}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {formatRole(user.role)}
+                </span>
+              </div>
             </div>
-          </div>
-        </DropdownMenuLabel>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        {user.role === 'super_admin' ? (
+          <>
+            <DropdownMenuItem render={<NavLink to="/users" />}>
+              <UsersIcon />
+              Users
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         <DropdownMenuItem
           disabled={isLoggingOut}
           onClick={() => void handleLogout()}
@@ -278,7 +270,11 @@ function getPageTitle(pathname: string): string {
     return 'Provider details'
   }
 
-  const navigation = [...primaryNavigation, ...adminNavigation]
+  if (pathname === '/users') {
+    return 'Users'
+  }
+
+  const navigation = primaryNavigation
   return (
     navigation.find(
       (item) =>
