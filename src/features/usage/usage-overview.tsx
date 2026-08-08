@@ -15,11 +15,6 @@ import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
-  cacheCompleteness,
-  costCompleteness,
-  tokenCompleteness,
-} from '@/features/usage/usage-completeness'
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -335,70 +330,31 @@ function UsageWindowSelector({
 
 function UsageSummary({ overview }: { overview: UsageOverviewData }) {
   if (overview.logicalRequests === 0 && overview.attempts === 0) {
-    return <UsageEmpty hasTrackingGaps={overview.trackingGaps > 0} />
+    return <UsageEmpty />
   }
 
   const { cost, tokens, cache } = overview
-  const tokenState = tokenCompleteness(tokens, overview.trackingGaps)
-  const costState = costCompleteness(cost, overview.trackingGaps)
-  const cacheState = cacheCompleteness(cache, overview.trackingGaps)
-  const hitRate = formatCacheHitRate(cache)
   const windowCost =
-    costState === 'unavailable'
-      ? 'Unavailable'
+    cost.completeAttempts === 0
+      ? '—'
       : formatUsageWindowCost(cost.completeUsd)
-  const cacheRate =
-    cacheState === 'unavailable'
-      ? 'Unavailable'
-      : cacheState === 'reported_only'
-        ? hitRate
-          ? `${hitRate} reported`
-          : 'No reported input'
-        : hitRate ?? '—'
 
   return (
-    <div className="grid gap-3">
-      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <UsageStat
-          label={overview.trackingGaps > 0 ? 'Recorded requests' : 'Requests'}
-          value={formatUsageCount(overview.logicalRequests)}
-        />
-        <UsageStat
-          label={tokenState === 'complete' ? 'Input tokens' : 'Known input tokens'}
-          value={`${tokenState === 'complete' ? '' : '≥ '}${formatUsageCount(tokens.effectiveInput)}`}
-        />
-        <UsageStat
-          label={tokenState === 'complete' ? 'Output tokens' : 'Known output tokens'}
-          value={`${tokenState === 'complete' ? '' : '≥ '}${formatUsageCount(tokens.output)}`}
-        />
-        <UsageStat label="Window cost" value={windowCost} />
-        <UsageStat
-          label={cacheState === 'complete' ? 'Cache hit rate' : 'Reported cache hit rate'}
-          value={cacheRate}
-        />
-      </div>
-      {tokenState !== 'complete' || costState !== 'complete' || cacheState !== 'complete' ? (
-        <Alert>
-          <CircleAlertIcon />
-          <AlertTitle>Usage is not fully known</AlertTitle>
-          <AlertDescription>
-            {tokenState !== 'complete'
-              ? 'Known token counts are lower bounds. '
-              : null}
-            {costState !== 'complete'
-              ? 'Cost is unavailable because every attempt could not be priced completely. '
-              : null}
-            {cacheState !== 'complete'
-              ? 'Reported cache rate excludes attempts without cache data'
-              : null}
-            {overview.trackingGaps > 0
-              ? `${cacheState !== 'complete' ? ', and ' : ''}${formatUsageCount(overview.trackingGaps)} tracking gap(s) mean recorded values are incomplete.`
-              : cacheState !== 'complete'
-                ? '.'
-                : null}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+    <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <UsageStat
+        label="Requests"
+        value={formatUsageCount(overview.logicalRequests)}
+      />
+      <UsageStat
+        label="Input tokens"
+        value={formatUsageCount(tokens.effectiveInput)}
+      />
+      <UsageStat
+        label="Output tokens"
+        value={formatUsageCount(tokens.output)}
+      />
+      <UsageStat label="Window cost" value={windowCost} />
+      <UsageStat label="Cache hit rate" value={formatCacheHitRate(cache)} />
     </div>
   )
 }
@@ -477,7 +433,6 @@ function UsageRequestsTable({
 
 function TokensBreakdown({ tokens }: { tokens: UsageTokenTotals }) {
   const total = tokens.effectiveInput + tokens.output
-  const incomplete = tokenCompleteness(tokens) !== 'complete'
 
   return (
     <Popover>
@@ -486,7 +441,7 @@ function TokensBreakdown({ tokens }: { tokens: UsageTokenTotals }) {
           <button
             type="button"
             className="flex min-h-11 min-w-[10.5rem] items-center gap-3 whitespace-nowrap rounded-md text-xs leading-4 tabular-nums outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-            aria-label={`Token breakdown, ${incomplete ? 'at least ' : ''}${formatUsageCount(total)} tokens`}
+            aria-label={`Token breakdown, ${formatUsageCount(total)} tokens`}
           />
         }
       >
@@ -494,48 +449,40 @@ function TokensBreakdown({ tokens }: { tokens: UsageTokenTotals }) {
           symbol="↑"
           tone="input"
           value={tokens.effectiveInput}
-          incomplete={tokens.attemptsWithUnknownInput > 0}
         />
         <TokenGlyph
           symbol="↓"
           tone="output"
           value={tokens.output}
-          incomplete={tokens.attemptsWithUnknownOutput > 0}
         />
         <TokenGlyph
           symbol={<DatabaseZapIcon size={13} strokeWidth={2.25} />}
           tone="cache"
           value={tokens.cacheReadInput}
-          incomplete={tokens.attemptsWithUnknownCache > 0}
         />
       </PopoverTrigger>
       <PopoverContent side="top" align="start" className="w-60 p-3">
         <BreakdownTitle>Token breakdown</BreakdownTitle>
         <div className="mt-2 grid gap-1">
           <BreakdownRow
-            label={tokens.attemptsWithUnknownInput > 0 ? 'Known input tokens' : 'Input tokens'}
-            value={`${tokens.attemptsWithUnknownInput > 0 ? '≥ ' : ''}${formatUsageCount(tokens.effectiveInput)}`}
+            label="Input tokens"
+            value={formatUsageCount(tokens.effectiveInput)}
           />
           <BreakdownRow
-            label={tokens.attemptsWithUnknownOutput > 0 ? 'Known output tokens' : 'Output tokens'}
-            value={`${tokens.attemptsWithUnknownOutput > 0 ? '≥ ' : ''}${formatUsageCount(tokens.output)}`}
+            label="Output tokens"
+            value={formatUsageCount(tokens.output)}
           />
           <BreakdownRow
-            label={tokens.attemptsWithUnknownCache > 0 ? 'Known cache read' : 'Cache read'}
-            value={`${tokens.attemptsWithUnknownCache > 0 ? '≥ ' : ''}${formatUsageCount(tokens.cacheReadInput)}`}
+            label="Cache read"
+            value={formatUsageCount(tokens.cacheReadInput)}
           />
         </div>
         <div className="my-2 h-px bg-border" />
         <BreakdownRow
-          label={incomplete ? 'Known total tokens' : 'Total tokens'}
-          value={`${incomplete ? '≥ ' : ''}${formatUsageCount(total)}`}
+          label="Total tokens"
+          value={formatUsageCount(total)}
           strong
         />
-        {incomplete ? (
-          <p className="mt-2 text-[0.7rem] leading-4 text-muted-foreground">
-            Some attempts did not report complete token or cache counts.
-          </p>
-        ) : null}
       </PopoverContent>
     </Popover>
   )
@@ -550,10 +497,8 @@ function CostBreakdown({
   cost: UsageCostTotals
   range: UsageRange
 }) {
-  const completeness = costCompleteness(cost)
-
-  if (completeness !== 'complete') {
-    return <span className="text-muted-foreground">Unavailable</span>
+  if (cost.completeAttempts === 0) {
+    return <span className="text-muted-foreground">—</span>
   }
 
   return (
@@ -620,7 +565,7 @@ function CostBreakdownContent({
 
   const attempt = detail.data.attempts.find((item) => item.attributed)
   if (!attempt) {
-    return <p className="mt-2 text-xs text-muted-foreground">Pricing unavailable.</p>
+    return <p className="mt-2 text-xs text-muted-foreground">—</p>
   }
 
   return (
@@ -660,7 +605,7 @@ function CostBreakdownContent({
         <BreakdownRow
           label="Pricing context"
           value={attempt.price.pricingContextTokens === null
-            ? 'Unavailable'
+            ? '—'
             : `${formatUsageCount(attempt.price.pricingContextTokens)} tokens`}
         />
         <BreakdownRow
@@ -694,8 +639,8 @@ function CostBreakdownContent({
       </div>
       <div className="my-2 h-px bg-border" />
       <BreakdownRow
-        label={attempt.cost.status === 'partial' ? 'Known total cost' : 'Total cost'}
-        value={`${attempt.cost.status === 'partial' ? '≥ ' : ''}${formatOptionalCost(attempt.cost.totalUsd)}`}
+        label="Total cost"
+        value={formatOptionalCost(attempt.cost.totalUsd)}
         strong
       />
     </>
@@ -743,12 +688,10 @@ function TokenGlyph({
   symbol,
   tone,
   value,
-  incomplete,
 }: {
   symbol: React.ReactNode
   tone: 'input' | 'output' | 'cache'
   value: number
-  incomplete: boolean
 }) {
   const toneClass =
     tone === 'input'
@@ -769,7 +712,7 @@ function TokenGlyph({
         {symbol}
       </span>
       <span className="font-medium text-foreground">
-        {incomplete ? '≥ ' : ''}{formatUsageCompactCount(value)}
+        {formatUsageCompactCount(value)}
       </span>
     </div>
   )
@@ -934,7 +877,7 @@ function UsageStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function UsageEmpty({ hasTrackingGaps }: { hasTrackingGaps: boolean }) {
+function UsageEmpty() {
   return (
     <Card className="min-h-80 justify-center">
       <Empty className="border-0">
@@ -944,9 +887,7 @@ function UsageEmpty({ hasTrackingGaps }: { hasTrackingGaps: boolean }) {
           </EmptyMedia>
           <EmptyTitle>No usage data recorded</EmptyTitle>
           <EmptyDescription>
-            {hasTrackingGaps
-              ? 'Some usage could not be recorded, so this window may not be empty.'
-              : 'Nothing was recorded in this window. Try a longer one.'}
+            Nothing was recorded in this window. Try a longer one.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

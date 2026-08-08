@@ -40,14 +40,12 @@ export function formatUsageDateTime(ms: number): string {
   return formatUnixMs(ms)
 }
 
-// Token hit rate over attempts that reported both effective input and cache
-// reads. Missing cache detail stays unknown instead of becoming a zero.
-export function formatCacheHitRate(cache: UsageCacheTotals): string | null {
+export function formatCacheHitRate(cache: UsageCacheTotals): string {
   return cache.reportedInputTokens > 0
     ? percentFormatter.format(
         cache.cacheReadInputTokens / cache.reportedInputTokens,
       )
-    : null
+    : percentFormatter.format(0)
 }
 
 const costScale = 6

@@ -1,6 +1,3 @@
-// Observed usage: what we saw the upstream consume, priced from a public
-// catalog. Nothing here is a bill, and a missing value is never a zero.
-
 export type UsageAttributionBasis =
   | 'user_final_attempt'
   | 'key_triggered_confirmed_dispatch'
@@ -17,8 +14,6 @@ export type UsageTokenTotals = {
   // reports usage today, and whether they are is a per-provider contract fact
   // this aggregate does not carry. Nothing here may be summed with reasoning.
   output: number
-  // Attempts that contributed nothing to effectiveInput because the upstream
-  // never reported it. They are not zeroes, they make the totals an undercount.
   attemptsWithUnknownInput: number
   attemptsWithUnknownOutput: number
   attemptsWithUnknownCache: number
@@ -37,7 +32,6 @@ export type UsageCostTotals = {
   completeUsd: string
   completeAttempts: number
   partialAttempts: number
-  // No amount at all. Never rendered as 0.
   unavailableAttempts: number
 }
 
@@ -50,8 +44,6 @@ export type UsageOverview = {
   tokens: UsageTokenTotals
   cache: UsageCacheTotals
   cost: UsageCostTotals
-  // Known bookkeeping losses. Non-zero means every number is an undercount and
-  // the UI has to say so.
   trackingGaps: number
 }
 
