@@ -2,13 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CircleAlertIcon,
+  EyeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
   PowerIcon,
   Trash2Icon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -33,6 +34,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -55,6 +57,7 @@ import {
 } from '@/components/ui/native-select'
 import {
   deleteApiKey,
+  getApiKey,
   updateApiKey,
 } from '@/features/api-keys/api-key-api'
 import { ApiKeyExpirationField } from '@/features/api-keys/api-key-expiration-field'
@@ -62,8 +65,12 @@ import {
   dateTimeLocalToTimestamp,
   toDateTimeLocalValue,
 } from '@/features/api-keys/api-key-format'
+import { ApiKeySecret } from '@/features/api-keys/api-key-secret'
 import { apiKeyKeys } from '@/features/api-keys/api-keys-query'
-import type { ApiKeySummary } from '@/features/api-keys/api-key-types'
+import type {
+  ApiKeyDetail,
+  ApiKeySummary,
+} from '@/features/api-keys/api-key-types'
 import { providersQueryOptions } from '@/features/providers/providers-query'
 import { apiErrorMessage } from '@/lib/api/error'
 import { replaceListItem } from '@/lib/api/query-cache'
@@ -147,6 +154,96 @@ export function ApiKeyActions({
         onOpenChange={setDeleteOpen}
       />
     </div>
+  )
+}
+
+export function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
+  const [open, setOpen] = useState(false)
+  const [detail, setDetail] = useState<ApiKeyDetail | null>(null)
+  const [error, setError] = useState<unknown>(null)
+  const [loading, setLoading] = useState(false)
+  const requestVersion = useRef(0)
+
+  function loadDetail() {
+    const version = ++requestVersion.current
+    setLoading(true)
+    setError(null)
+    setDetail(null)
+
+    void getApiKey(apiKey.id)
+      .then((nextDetail) => {
+        if (requestVersion.current === version) {
+          setDetail(nextDetail)
+        }
+      })
+      .catch((nextError: unknown) => {
+        if (requestVersion.current === version) {
+          setError(nextError)
+        }
+      })
+      .finally(() => {
+        if (requestVersion.current === version) {
+          setLoading(false)
+        }
+      })
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen)
+    if (nextOpen) {
+      loadDetail()
+    } else {
+      requestVersion.current += 1
+      setDetail(null)
+      setError(null)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={<Button variant="ghost" size="sm" />}>
+        <EyeIcon />
+        View
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{apiKey.label}</DialogTitle>
+          <DialogDescription>
+            Use this credential with a supported client. Keep it private.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex min-h-24 items-center justify-center text-sm text-muted-foreground">
+            <Loader2Icon className="mr-2 size-4 animate-spin" />
+            Loading key...
+          </div>
+        ) : null}
+
+        {error ? (
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertTitle>Unable to load API key</AlertTitle>
+            <AlertDescription>{errorMessage(error)}</AlertDescription>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+              onClick={loadDetail}
+            >
+              Retry
+            </Button>
+          </Alert>
+        ) : null}
+
+        {detail ? <ApiKeySecret value={detail.key} /> : null}
+
+        <DialogFooter>
+          <DialogClose render={<Button />}>Done</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

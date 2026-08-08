@@ -1,4 +1,5 @@
 import type {
+  ApiKeyDetail,
   ApiKeySummary,
   CreatedApiKey,
 } from '@/features/api-keys/api-key-types'
@@ -32,9 +33,22 @@ export function decodeCreatedApiKey(value: unknown): CreatedApiKey {
   }
 }
 
+export function decodeApiKeyDetail(value: unknown): ApiKeyDetail {
+  const record = requireRecord(value, 'API key detail')
+  const common = decodeCommonApiKey(record)
+
+  return {
+    ...common,
+    key: requireNonEmptyString(record.key, 'API key secret'),
+  }
+}
+
 function decodeApiKeySummary(value: unknown, label: string): ApiKeySummary {
   const record = requireRecord(value, label)
-  return decodeCommonApiKey(record)
+  return {
+    ...decodeCommonApiKey(record),
+    maskedKey: requireNonEmptyString(record.key, 'masked API key'),
+  }
 }
 
 function decodeCommonApiKey(record: Record<string, unknown>) {

@@ -31,7 +31,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ApiKeyActions } from '@/features/api-keys/api-key-actions'
+import {
+  ApiKeyActions,
+  ApiKeyRevealDialog,
+} from '@/features/api-keys/api-key-actions'
 import { ApiKeyCreateDialog } from '@/features/api-keys/api-key-create'
 import {
   formatApiKeyDate,
@@ -81,6 +84,7 @@ function ApiKeyCollection({
           <TableHeader>
             <TableRow className="bg-muted/55 hover:bg-muted/55">
               <TableHead className="pl-4">Name</TableHead>
+              <TableHead>API Key</TableHead>
               <TableHead>Group</TableHead>
               <TableHead>Usage</TableHead>
               <TableHead>Expires</TableHead>
@@ -117,6 +121,14 @@ function ApiKeyTableRow({
     <TableRow>
       <TableCell className="py-4 pl-4">
         <span className="font-medium">{apiKey.label}</span>
+      </TableCell>
+      <TableCell>
+        <div className="flex min-w-0 items-center gap-2">
+          <code className="max-w-44 truncate font-mono text-xs tracking-wide text-muted-foreground">
+            {apiKey.maskedKey}
+          </code>
+          <ApiKeyRevealDialog apiKey={apiKey} />
+        </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
         {apiKey.groupLabel}
@@ -155,6 +167,12 @@ function ApiKeyCard({
         <div className="flex items-start justify-between gap-3">
           <span className="font-medium">{apiKey.label}</span>
           <ApiKeyStatusBadge apiKey={apiKey} now={now} />
+        </div>
+        <div className="flex min-w-0 items-center gap-2">
+          <code className="min-w-0 flex-1 truncate font-mono text-xs tracking-wide text-muted-foreground">
+            {apiKey.maskedKey}
+          </code>
+          <ApiKeyRevealDialog apiKey={apiKey} />
         </div>
       </div>
 

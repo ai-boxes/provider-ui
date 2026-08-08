@@ -4,10 +4,12 @@ import {
 } from '@/features/auth/authenticated-request'
 import {
   decodeApiKey,
+  decodeApiKeyDetail,
   decodeCreatedApiKey,
   decodeApiKeys,
 } from '@/features/api-keys/api-key-decoders'
 import type {
+  ApiKeyDetail,
   ApiKeySummary,
   CreateApiKeyInput,
   CreatedApiKey,
@@ -20,6 +22,10 @@ const jsonHeaders = {
 
 export function getApiKeys(): Promise<ApiKeySummary[]> {
   return requestAuthenticatedData('/api/v1/keys', decodeApiKeys)
+}
+
+export function getApiKey(keyId: string): Promise<ApiKeyDetail> {
+  return requestAuthenticatedData(apiKeyEndpoint(keyId), decodeApiKeyDetail)
 }
 
 export function createApiKey(input: CreateApiKeyInput): Promise<CreatedApiKey> {
