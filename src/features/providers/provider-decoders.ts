@@ -31,7 +31,6 @@ import type {
   ProviderModelPricing,
   ProviderModelPricingTier,
   ProviderModelCatalogSnapshot,
-  ProviderModelCatalogSource,
   ProviderOAuthSession,
   ProviderOAuthStatus,
   ProviderQuota,
@@ -61,15 +60,9 @@ const providerAuthStates = [
   'reauth_required',
 ] as const satisfies readonly ProviderAuthState[]
 
-const providerModelCatalogSources = [
-  'remote',
-  'cached',
-  'built_in',
-  'empty',
-] as const satisfies readonly ProviderModelCatalogSource[]
-
 const providerOAuthStatuses = [
   'pending',
+  'provisioning',
   'completed',
   'failed',
   'cancelled',
@@ -475,13 +468,7 @@ export function decodeProviderModelCatalogSnapshot(
   const record = requireRecord(value, 'provider model catalog')
 
   return {
-    source: requireEnum(
-      record.source,
-      providerModelCatalogSources,
-      'provider model catalog source',
-    ),
     models: decodeProviderModels(record.models),
-    warning: optionalString(record.warning, 'provider model catalog warning'),
   }
 }
 

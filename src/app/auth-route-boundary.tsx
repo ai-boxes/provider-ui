@@ -12,6 +12,10 @@ import {
 } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import {
+  authReturnState,
+  readAuthReturnTo,
+} from '@/features/auth/auth-navigation'
+import {
   clearAuthSession,
   restoreAuthSession,
 } from '@/features/auth/auth-session'
@@ -61,7 +65,7 @@ export function AuthRouteBoundary() {
 
   if (authState.status === 'authenticated') {
     return isAuthenticationRoute(location.pathname) ? (
-      <Navigate to="/" replace />
+      <Navigate to={readAuthReturnTo(location.state)} replace />
     ) : (
       <Outlet />
     )
@@ -102,7 +106,11 @@ export function AuthRouteBoundary() {
   return location.pathname === '/login' ? (
     <Outlet />
   ) : (
-    <Navigate to="/login" replace />
+    <Navigate
+      to="/login"
+      replace
+      state={authReturnState(location)}
+    />
   )
 }
 

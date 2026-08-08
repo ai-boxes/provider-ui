@@ -8,9 +8,8 @@ import {
 } from '@/features/usage/usage-api'
 import type {
   UsageAttributionBasis,
-  UsageWindowId,
+  UsageRange,
 } from '@/features/usage/usage-types'
-import { currentUsageRange } from '@/features/usage/usage-window'
 
 const usageBasis: UsageAttributionBasis = 'user_final_attempt'
 
@@ -25,62 +24,71 @@ export type UsageFilterState = {
 }
 
 export const usageKeys = {
-  overview: (window: UsageWindowId) => ['usage', 'overview', window] as const,
+  overview: (range: UsageRange) =>
+    ['usage', 'overview', range.fromMs, range.toMs, usageBasis] as const,
   requests: (
-    window: UsageWindowId,
+    range: UsageRange,
     filters: UsageFilterState,
     cursor: string | null,
   ) =>
     [
       'usage',
       'requests',
-      window,
+      range.fromMs,
+      range.toMs,
+      usageBasis,
       filters.apiKeyId ?? 'all',
       filters.model ?? 'all',
       filters.groupLabel ?? 'all',
       cursor ?? 'start',
     ] as const,
-  requestDetail: (requestId: string, window: UsageWindowId) =>
-    ['usage', 'request-detail', requestId, window, usageBasis] as const,
+  requestDetail: (requestId: string, range: UsageRange) =>
+    [
+      'usage',
+      'request-detail',
+      requestId,
+      range.fromMs,
+      range.toMs,
+      usageBasis,
+    ] as const,
 }
 
 export function usageRequestDetailQueryOptions(
   requestId: string,
-  window: UsageWindowId,
+  range: UsageRange,
 ) {
   return queryOptions({
-    queryKey: usageKeys.requestDetail(requestId, window),
-    queryFn: () =>
-      getUsageRequestDetail(requestId, currentUsageRange(window), usageBasis),
+    queryKey: usageKeys.requestDetail(requestId, range),
+    queryFn: () => getUsageRequestDetail(requestId, range, usageBasis),
     staleTime: usageStaleTime,
   })
 }
 
-export function usageFilterOptionsQueryOptions(window: UsageWindowId) {
+export function usageFilterOptionsQueryOptions(range: UsageRange) {
   return queryOptions({
-    queryKey: ['usage', 'filters', window] as const,
-    queryFn: () => getUsageFilterOptions(currentUsageRange(window), usageBasis),
+    queryKey: ['usage', 'filters', range.fromMs, range.toMs, usageBasis] as const,
+    queryFn: () => getUsageFilterOptions(range, usageBasis),
     staleTime: usageStaleTime,
   })
 }
 
-export function usageOverviewQueryOptions(window: UsageWindowId) {
+export function usageOverviewQueryOptions(range: UsageRange) {
   return queryOptions({
-    queryKey: usageKeys.overview(window),
-    queryFn: () => getUsageOverview(currentUsageRange(window), usageBasis),
+    queryKey: usageKeys.overview(range),
+    queryFn: () => getUsageOverview(range, usageBasis),
     staleTime: usageStaleTime,
   })
 }
 
 export function usageRequestsQueryOptions(
-  window: UsageWindowId,
+  range: UsageRange,
   filters: UsageFilterState,
   cursor: string | null = null,
 ) {
   return queryOptions({
-    queryKey: usageKeys.requests(window, filters, cursor),
+    queryKey: usageKeys.requests(range, filters, cursor),
     queryFn: () =>
-      getUsageRequests(currentUsageRange(window), usageBasis, {
+      getUsageRequests(range, usageBasis, {
         apiKeyId: filters.apiKeyId,
         model: filters.model,
         groupLabel: filters.groupLabel,

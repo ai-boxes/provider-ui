@@ -3,24 +3,23 @@ export type ApiKeySummary = {
   ownerUserId: string
   groupLabel: string
   label: string
-  maskedKey: string
   enabled: boolean
   expiresAt: number | null
   quotaLimitUsd: string | null
   spentUsd: string
+  quotaAccounting: 'ready' | 'indeterminate'
   lastUsedAt: number | null
   createdAt: number
   updatedAt: number
 }
 
-export type ApiKeyDetail = Omit<ApiKeySummary, 'maskedKey'> & {
+export type CreatedApiKey = ApiKeySummary & {
   key: string
 }
 
 export type CreateApiKeyInput = {
   label: string
   groupLabel: string
-  key: string
   expiresAt: number | null
   quotaLimitUsd: string | null
 }

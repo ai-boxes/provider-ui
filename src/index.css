@@ -140,3 +140,34 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+@media (pointer: coarse) {
+  [data-slot="button"],
+  [data-slot="dropdown-menu-trigger"],
+  [data-slot="sidebar-menu-button"] {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-sub-trigger"] {
+    min-height: 2.75rem;
+  }
+
+  [data-slot="native-select-wrapper"],
+  [data-slot="native-select"] {
+    min-height: 2.75rem;
+  }
+
+  [data-slot="calendar"] {
+    --cell-size: 2.75rem;
+    max-width: 100vw;
+    padding: 0.25rem;
+  }
+
+  [data-slot="calendar"] .rdp-button_previous,
+  [data-slot="calendar"] .rdp-button_next {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}

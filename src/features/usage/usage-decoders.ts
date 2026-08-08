@@ -28,6 +28,11 @@ export const usageAttributionBases = [
 // from public model prices") is a claim about what the number means, so a basis
 // we have not seen is rejected rather than labelled with someone else's caveat.
 const costBases = ['observed_catalog'] as const
+const costStatuses = [
+  'complete_for_observed_catalog_components',
+  'partial',
+  'unavailable',
+] as const
 
 export function decodeUsageOverview(value: unknown): UsageOverview {
   const record = requireRecord(value, 'usage overview')
@@ -107,6 +112,7 @@ export function decodeUsageRequestDetail(value: unknown): UsageRequestDetail {
         return {
           attributed: attempt.attributed,
           cost: {
+            status: requireEnum(cost.status, costStatuses, `${label} cost status`),
             totalUsd: nullableDecimalAmount(cost.usd, `${label} total cost`),
             inputUsd: nullableDecimalAmount(
               components.input_usd,
@@ -120,8 +126,32 @@ export function decodeUsageRequestDetail(value: unknown): UsageRequestDetail {
               components.cache_read_usd,
               `${label} cache read cost`,
             ),
+            cacheWriteUsd: nullableDecimalAmount(
+              components.cache_write_usd,
+              `${label} cache write cost`,
+            ),
+            reasoningUsd: nullableDecimalAmount(
+              components.reasoning_usd,
+              `${label} reasoning cost`,
+            ),
+            inputAudioUsd: nullableDecimalAmount(
+              components.input_audio_usd,
+              `${label} input audio cost`,
+            ),
+            outputAudioUsd: nullableDecimalAmount(
+              components.output_audio_usd,
+              `${label} output audio cost`,
+            ),
           },
           price: {
+            pricingContextTokens: nullableNonNegativeInteger(
+              price.pricing_context_tokens,
+              `${label} pricing context tokens`,
+            ),
+            tierThresholdTokens: nullableNonNegativeInteger(
+              price.tier_threshold_tokens,
+              `${label} tier threshold tokens`,
+            ),
             inputPerMillionUsd: nullableDecimalAmount(
               price.input_per_million_usd,
               `${label} input price`,
@@ -130,11 +160,35 @@ export function decodeUsageRequestDetail(value: unknown): UsageRequestDetail {
               price.output_per_million_usd,
               `${label} output price`,
             ),
+            cacheReadPerMillionUsd: nullableDecimalAmount(
+              price.cache_read_per_million_usd,
+              `${label} cache read price`,
+            ),
+            cacheWritePerMillionUsd: nullableDecimalAmount(
+              price.cache_write_per_million_usd,
+              `${label} cache write price`,
+            ),
+            reasoningPerMillionUsd: nullableDecimalAmount(
+              price.reasoning_per_million_usd,
+              `${label} reasoning price`,
+            ),
+            inputAudioPerMillionUsd: nullableDecimalAmount(
+              price.input_audio_per_million_usd,
+              `${label} input audio price`,
+            ),
+            outputAudioPerMillionUsd: nullableDecimalAmount(
+              price.output_audio_per_million_usd,
+              `${label} output audio price`,
+            ),
           },
         }
       },
     ),
   }
+}
+
+function nullableNonNegativeInteger(value: unknown, label: string): number | null {
+  return value == null ? null : requireNonNegativeInteger(value, label)
 }
 
 function decodeRequestSummary(value: unknown, label: string): UsageRequestSummary {
@@ -213,6 +267,14 @@ function decodeTokenTotals(value: unknown): UsageTokenTotals {
     attemptsWithUnknownInput: requireNonNegativeInteger(
       record.attempts_with_unknown_input,
       'attempts with unknown input',
+    ),
+    attemptsWithUnknownOutput: requireNonNegativeInteger(
+      record.attempts_with_unknown_output,
+      'attempts with unknown output',
+    ),
+    attemptsWithUnknownCache: requireNonNegativeInteger(
+      record.attempts_with_unknown_cache,
+      'attempts with unknown cache usage',
     ),
   }
 }

@@ -20,6 +20,8 @@ export type UsageTokenTotals = {
   // Attempts that contributed nothing to effectiveInput because the upstream
   // never reported it. They are not zeroes, they make the totals an undercount.
   attemptsWithUnknownInput: number
+  attemptsWithUnknownOutput: number
+  attemptsWithUnknownCache: number
 }
 
 export type UsageCacheTotals = {
@@ -82,14 +84,26 @@ export type UsageRequests = {
 export type UsageRequestAttemptDetail = {
   attributed: boolean
   cost: {
+    status: 'complete_for_observed_catalog_components' | 'partial' | 'unavailable'
     totalUsd: string | null
     inputUsd: string | null
     outputUsd: string | null
     cacheReadUsd: string | null
+    cacheWriteUsd: string | null
+    reasoningUsd: string | null
+    inputAudioUsd: string | null
+    outputAudioUsd: string | null
   }
   price: {
+    pricingContextTokens: number | null
+    tierThresholdTokens: number | null
     inputPerMillionUsd: string | null
     outputPerMillionUsd: string | null
+    cacheReadPerMillionUsd: string | null
+    cacheWritePerMillionUsd: string | null
+    reasoningPerMillionUsd: string | null
+    inputAudioPerMillionUsd: string | null
+    outputAudioPerMillionUsd: string | null
   }
 }
 

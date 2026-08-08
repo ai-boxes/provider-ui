@@ -5,7 +5,6 @@ import {
   KeyRoundIcon,
   Loader2Icon,
   PlusIcon,
-  RefreshCwIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -35,15 +34,12 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from '@/components/ui/native-select'
-import {
-  createApiKey,
-  generateApiKey,
-} from '@/features/api-keys/api-key-api'
+import { createApiKey } from '@/features/api-keys/api-key-api'
 import { ApiKeyExpirationField } from '@/features/api-keys/api-key-expiration-field'
 import { dateTimeLocalToTimestamp } from '@/features/api-keys/api-key-format'
 import { ApiKeySecret } from '@/features/api-keys/api-key-secret'
 import { apiKeyKeys } from '@/features/api-keys/api-keys-query'
-import type { ApiKeyDetail } from '@/features/api-keys/api-key-types'
+import type { CreatedApiKey } from '@/features/api-keys/api-key-types'
 import { providersQueryOptions } from '@/features/providers/providers-query'
 import { apiErrorMessage } from '@/lib/api/error'
 
@@ -51,7 +47,6 @@ const apiKeyCreateSchema = z
   .object({
     label: z.string().trim().min(1, 'Name is required.'),
     groupLabel: z.string().trim().min(1, 'Provider group is required.'),
-    key: z.string(),
     expiresAt: z.string(),
     quotaLimitUsd: z.string(),
   })
@@ -61,30 +56,6 @@ const apiKeyCreateSchema = z
         code: 'custom',
         path: ['label'],
         message: 'Name must be 128 bytes or fewer.',
-      })
-    }
-
-    if ([...values.key].length < 16) {
-      context.addIssue({
-        code: 'custom',
-        path: ['key'],
-        message: 'Key must contain at least 16 characters.',
-      })
-    }
-
-    if (!/^[A-Za-z0-9_-]+$/.test(values.key)) {
-      context.addIssue({
-        code: 'custom',
-        path: ['key'],
-        message: 'Use only letters, numbers, hyphens, and underscores.',
-      })
-    }
-
-    if (new TextEncoder().encode(values.key).length > 256) {
-      context.addIssue({
-        code: 'custom',
-        path: ['key'],
-        message: 'Key must be 256 bytes or fewer.',
       })
     }
 
@@ -119,18 +90,15 @@ type ApiKeyCreateValues = z.infer<typeof apiKeyCreateSchema>
 const defaultValues: ApiKeyCreateValues = {
   label: '',
   groupLabel: '',
-  key: '',
   expiresAt: '',
   quotaLimitUsd: '',
 }
 
 export function ApiKeyCreateDialog() {
   const [open, setOpen] = useState(false)
-  const [createdKey, setCreatedKey] = useState<ApiKeyDetail | null>(null)
+  const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null)
   const [requestError, setRequestError] = useState<unknown>(null)
-  const [generateError, setGenerateError] = useState<unknown>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const queryClient = useQueryClient()
   const providers = useQuery(providersQueryOptions)
   const groupLabels = Array.from(
@@ -146,30 +114,12 @@ export function ApiKeyCreateDialog() {
   })
 
   function handleOpenChange(nextOpen: boolean) {
-    if (submitting || generating) {
+    if (submitting) {
       return
     }
 
     setOpen(nextOpen)
     resetDialog()
-  }
-
-  async function generate() {
-    setGenerating(true)
-    setGenerateError(null)
-
-    try {
-      const key = await generateApiKey()
-      form.setValue('key', key, {
-        shouldDirty: true,
-        shouldTouch: true,
-        shouldValidate: true,
-      })
-    } catch (error) {
-      setGenerateError(error)
-    } finally {
-      setGenerating(false)
-    }
   }
 
   async function submit(values: ApiKeyCreateValues) {
@@ -183,7 +133,6 @@ export function ApiKeyCreateDialog() {
       const created = await createApiKey({
         label: values.label,
         groupLabel: values.groupLabel,
-        key: values.key,
         expiresAt: dateTimeLocalToTimestamp(values.expiresAt),
         quotaLimitUsd,
       })
@@ -204,10 +153,9 @@ export function ApiKeyCreateDialog() {
     form.reset(defaultValues)
     setCreatedKey(null)
     setRequestError(null)
-    setGenerateError(null)
   }
 
-  const busy = submitting || generating
+  const busy = submitting
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -223,7 +171,8 @@ export function ApiKeyCreateDialog() {
             <DialogHeader>
               <DialogTitle>Create API key</DialogTitle>
               <DialogDescription>
-                Create a downstream credential for Codex, Claude, or another API client.
+                Create a server-generated credential for Codex, Claude, or
+                another API client. Its full value is shown only after creation.
               </DialogDescription>
             </DialogHeader>
 
@@ -279,46 +228,6 @@ export function ApiKeyCreateDialog() {
                   {providers.isError ? (
                     <p role="alert" className="text-xs text-destructive">
                       Unable to load provider accounts.
-                    </p>
-                  ) : null}
-                </Field>
-
-                <Field data-invalid={Boolean(form.formState.errors.key)}>
-                  <FieldLabel htmlFor="api-key-value">Key value</FieldLabel>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      id="api-key-value"
-                      autoComplete="off"
-                      spellCheck={false}
-                      placeholder="At least 16 URL-safe characters"
-                      disabled={busy}
-                      aria-invalid={Boolean(form.formState.errors.key)}
-                      className="min-w-0 flex-1 font-mono"
-                      {...form.register('key')}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="shrink-0"
-                      disabled={busy}
-                      onClick={() => void generate()}
-                    >
-                      {generating ? (
-                        <Loader2Icon className="animate-spin" />
-                      ) : (
-                        <RefreshCwIcon />
-                      )}
-                      {generating ? 'Generating…' : 'Generate'}
-                    </Button>
-                  </div>
-                  <FieldDescription>
-                    Enter a URL-safe key or ask the server to generate one.
-                    Maximum 256 bytes.
-                  </FieldDescription>
-                  <FieldError errors={[form.formState.errors.key]} />
-                  {generateError ? (
-                    <p role="alert" className="text-xs text-destructive">
-                      {apiErrorMessage(generateError, 'The server could not generate a key.')}
                     </p>
                   ) : null}
                 </Field>
@@ -394,8 +303,8 @@ function CreatedApiKeyResult({ label, value }: { label: string; value: string })
         </div>
         <DialogTitle>{label} is ready</DialogTitle>
         <DialogDescription>
-          Copy this key into the client that will call the Provider API. You can
-          reveal it again from this page.
+          Copy and store this key now. For security, the full value is shown
+          only once and cannot be viewed again after you close this dialog.
         </DialogDescription>
       </DialogHeader>
       <ApiKeySecret value={value} />

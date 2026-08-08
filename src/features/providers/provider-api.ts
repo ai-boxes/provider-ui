@@ -234,6 +234,16 @@ export function updateProviderModel(
                     reasoning: input.pricing.reasoning,
                     input_audio: input.pricing.inputAudio,
                     output_audio: input.pricing.outputAudio,
+                    tiers: input.pricing.tiers.map((tier) => ({
+                      threshold_tokens: tier.thresholdTokens,
+                      input: tier.input,
+                      output: tier.output,
+                      cache_read: tier.cacheRead,
+                      cache_write: tier.cacheWrite,
+                      reasoning: tier.reasoning,
+                      input_audio: tier.inputAudio,
+                      output_audio: tier.outputAudio,
+                    })),
                   }
                 : null,
             }

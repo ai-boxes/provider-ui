@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CircleAlertIcon,
   Loader2Icon,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { z } from 'zod'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -47,6 +47,7 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
+import { apiKeysQueryOptions } from '@/features/api-keys/api-keys-query'
 import {
   deleteProviderAccount,
   setProviderEnabled,
@@ -56,7 +57,10 @@ import {
   isCompatibleProvider,
   isOAuthProvider,
 } from '@/features/providers/provider-format'
-import { providerKeys } from '@/features/providers/providers-query'
+import {
+  providerKeys,
+  providersQueryOptions,
+} from '@/features/providers/providers-query'
 import type { ProviderAccount } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
 
@@ -95,7 +99,23 @@ export function ProviderEnabledControl({
 }: {
   account: ProviderAccount
 }) {
+  const [confirmDisable, setConfirmDisable] = useState(false)
   const queryClient = useQueryClient()
+  const providers = useQuery({
+    ...providersQueryOptions,
+    enabled: confirmDisable && account.visibility === 'private',
+  })
+  const apiKeys = useQuery({
+    ...apiKeysQueryOptions,
+    enabled: confirmDisable && account.visibility === 'private',
+  })
+  const impact = providerGroupImpact(
+    account,
+    providers.data,
+    apiKeys.data,
+    providers.isPending || apiKeys.isPending,
+    providers.isError || apiKeys.isError,
+  )
   const mutation = useMutation({
     mutationFn: setProviderEnabled,
     onMutate: async (input) => {
@@ -125,6 +145,7 @@ export function ProviderEnabledControl({
     },
     onSuccess: (updated) => {
       queryClient.setQueryData(providerKeys.detail(updated.id), updated)
+      setConfirmDisable(false)
     },
     onSettled: (_data, _error, input) => {
       void queryClient.invalidateQueries({
@@ -144,9 +165,13 @@ export function ProviderEnabledControl({
           checked={account.enabled}
           disabled={mutation.isPending}
           aria-label={account.enabled ? 'Disable provider' : 'Enable provider'}
-          onCheckedChange={(enabled) =>
-            mutation.mutate({ accountId: account.id, enabled })
-          }
+          onCheckedChange={(enabled) => {
+            if (enabled) {
+              mutation.mutate({ accountId: account.id, enabled })
+            } else {
+              setConfirmDisable(true)
+            }
+          }}
         />
         <span>{account.enabled ? 'Enabled' : 'Disabled'}</span>
         {mutation.isPending ? (
@@ -158,6 +183,42 @@ export function ProviderEnabledControl({
           Unable to update the Provider state.
         </span>
       ) : null}
+      <AlertDialog open={confirmDisable} onOpenChange={setConfirmDisable}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <CircleAlertIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Disable {account.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {account.visibility === 'shared'
+                ? `API keys owned by you or other users may route through the shared “${account.groupLabel}” group. Disabling this account may leave some users without an eligible Provider.`
+                : privateDisableImpact(account, impact)}
+              {' '}Re-enable this account, enable another Provider in the
+              group, or move the API keys to restore routing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={mutation.isPending}>
+              Keep enabled
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                mutation.isPending ||
+                (account.visibility === 'private' && impact.pending)
+              }
+              onClick={() =>
+                mutation.mutate({ accountId: account.id, enabled: false })
+              }
+            >
+              {mutation.isPending ? (
+                <Loader2Icon className="animate-spin" />
+              ) : null}
+              Disable Provider
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -165,6 +226,10 @@ export function ProviderEnabledControl({
 export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
+  const apiKeys = useQuery({
+    ...apiKeysQueryOptions,
+    enabled: open && account.visibility === 'private',
+  })
   const schema = useMemo(
     () =>
       accountEditBaseSchema.superRefine((values, context) => {
@@ -203,6 +268,13 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
       })
     },
   })
+  const nextGroupLabel = form.watch('groupLabel').trim()
+  const groupChanged =
+    nextGroupLabel.length > 0 && nextGroupLabel !== account.groupLabel
+  const affectedKeyCount =
+    apiKeys.isSuccess
+      ? apiKeys.data.filter((key) => key.groupLabel === account.groupLabel).length
+      : null
 
   function handleOpenChange(nextOpen: boolean) {
     if (updateAccount.isPending) {
@@ -233,6 +305,28 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
             title="Unable to update Provider"
             error={updateAccount.error}
           />
+        ) : null}
+
+        {groupChanged ? (
+          <Alert>
+            <CircleAlertIcon />
+            <AlertTitle>API keys are not moved automatically</AlertTitle>
+            <AlertDescription>
+              {account.visibility === 'shared'
+                ? `API keys owned by you or other users may use the shared “${account.groupLabel}” group.`
+                : apiKeys.isError
+                  ? `API keys owned by you may use “${account.groupLabel}”, but their count could not be loaded.`
+                : affectedKeyCount === null
+                  ? `Checking API keys that use “${account.groupLabel}”.`
+                  : `${affectedKeyCount} API key${affectedKeyCount === 1 ? '' : 's'} owned by you currently use “${account.groupLabel}”.`}
+              {' '}Saving changes only this Provider to “{nextGroupLabel}”;
+              existing keys keep their current group.{' '}
+              <Link className="font-medium underline underline-offset-4" to="/api-keys">
+                Review API keys
+              </Link>
+              {' '}to move them deliberately.
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         <form
@@ -359,6 +453,21 @@ function ProviderDeleteDialog({ account }: { account: ProviderAccount }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const providers = useQuery({
+    ...providersQueryOptions,
+    enabled: open && account.visibility === 'private',
+  })
+  const apiKeys = useQuery({
+    ...apiKeysQueryOptions,
+    enabled: open && account.visibility === 'private',
+  })
+  const impact = providerGroupImpact(
+    account,
+    providers.data,
+    apiKeys.data,
+    providers.isPending || apiKeys.isPending,
+    providers.isError || apiKeys.isError,
+  )
   const deleteAccount = useMutation({
     mutationFn: () => deleteProviderAccount(account.id),
     onSuccess: () => {
@@ -399,7 +508,12 @@ function ProviderDeleteDialog({ account }: { account: ProviderAccount }) {
           <AlertDialogTitle>Delete {account.label}?</AlertDialogTitle>
           <AlertDialogDescription>
             This permanently removes the Provider account and its stored model
-            catalog. This action cannot be undone.
+            catalog. API keys are not deleted or moved.{' '}
+            {account.visibility === 'shared'
+              ? `API keys owned by you or other users may route through the shared “${account.groupLabel}” group. Deletion may leave some users without an eligible Provider.`
+              : privateDeleteImpact(account, impact)}
+            {' '}To restore affected routing, move those keys or add an enabled
+            Provider with the same group label. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -416,7 +530,10 @@ function ProviderDeleteDialog({ account }: { account: ProviderAccount }) {
           </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            disabled={deleteAccount.isPending}
+            disabled={
+              deleteAccount.isPending ||
+              (account.visibility === 'private' && impact.pending)
+            }
             onClick={() => deleteAccount.mutate()}
           >
             {deleteAccount.isPending ? (
@@ -467,4 +584,69 @@ function isHttpUrl(value: string): boolean {
   } catch {
     return false
   }
+}
+
+function providerGroupImpact(
+  account: ProviderAccount,
+  providers: ProviderAccount[] | undefined,
+  apiKeys: Array<{ groupLabel: string }> | undefined,
+  pending: boolean,
+  failed: boolean,
+): {
+  ready: boolean
+  pending: boolean
+  failed: boolean
+  apiKeyCount: number
+  alternativeEnabledProviders: number
+} {
+  return {
+    ready: !pending && !failed,
+    pending,
+    failed,
+    apiKeyCount:
+      apiKeys?.filter((key) => key.groupLabel === account.groupLabel).length ?? 0,
+    alternativeEnabledProviders:
+      providers?.filter(
+        (provider) =>
+          provider.id !== account.id &&
+          provider.enabled &&
+          provider.groupLabel === account.groupLabel,
+      ).length ?? 0,
+  }
+}
+
+function privateDisableImpact(
+  account: ProviderAccount,
+  impact: ReturnType<typeof providerGroupImpact>,
+): string {
+  if (!impact.ready) {
+    if (impact.failed) {
+      return `API keys owned by you may use “${account.groupLabel}”, but their routing impact could not be loaded. Disabling this account may leave those keys without an enabled Provider.`
+    }
+    return `Checking API keys and enabled Providers in “${account.groupLabel}” before disabling this account.`
+  }
+
+  if (impact.alternativeEnabledProviders > 0) {
+    return `${impact.apiKeyCount} API key${impact.apiKeyCount === 1 ? '' : 's'} owned by you use “${account.groupLabel}”. They can continue routing through ${impact.alternativeEnabledProviders} other enabled Provider${impact.alternativeEnabledProviders === 1 ? '' : 's'} available to you in this group.`
+  }
+
+  return `${impact.apiKeyCount} API key${impact.apiKeyCount === 1 ? '' : 's'} owned by you use “${account.groupLabel}”. Disabling this account leaves you without an enabled Provider in that group, so those keys cannot route requests.`
+}
+
+function privateDeleteImpact(
+  account: ProviderAccount,
+  impact: ReturnType<typeof providerGroupImpact>,
+): string {
+  if (!impact.ready) {
+    if (impact.failed) {
+      return `API keys owned by you may use “${account.groupLabel}”, but their routing impact could not be loaded. Deletion may leave those keys without an enabled Provider.`
+    }
+    return `Checking API keys and enabled Providers in “${account.groupLabel}” before deletion.`
+  }
+
+  if (impact.alternativeEnabledProviders > 0) {
+    return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} owned by you can continue routing through ${impact.alternativeEnabledProviders} other enabled Provider${impact.alternativeEnabledProviders === 1 ? '' : 's'} available to you in “${account.groupLabel}”.`
+  }
+
+  return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} owned by you use “${account.groupLabel}”, which will have no enabled Provider available to you after deletion.`
 }

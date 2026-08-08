@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { clearAuthSession } from '@/features/auth/auth-session'
 import {
   Tooltip,
   TooltipContent,
@@ -105,15 +106,27 @@ export function UserEnabledControl({
   )
 }
 
-export function UserActions({ user }: { user: ManagedUser }) {
+export function UserActions({
+  user,
+  currentUserId,
+}: {
+  user: ManagedUser
+  currentUserId: string
+}) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <UserEditDialog user={user} />
+      <UserEditDialog user={user} isSelf={user.id === currentUserId} />
     </div>
   )
 }
 
-function UserEditDialog({ user }: { user: ManagedUser }) {
+function UserEditDialog({
+  user,
+  isSelf,
+}: {
+  user: ManagedUser
+  isSelf: boolean
+}) {
   const [open, setOpen] = useState(false)
   const [requestError, setRequestError] = useState<unknown>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -145,6 +158,9 @@ function UserEditDialog({ user }: { user: ManagedUser }) {
       replaceListItem(queryClient, userKeys.all, updated)
       form.reset(defaultValues)
       setOpen(false)
+      if (isSelf) {
+        clearAuthSession()
+      }
     } catch (error) {
       setRequestError(error)
     } finally {
@@ -162,8 +178,9 @@ function UserEditDialog({ user }: { user: ManagedUser }) {
         <DialogHeader>
           <DialogTitle>Edit {user.username}</DialogTitle>
           <DialogDescription>
-            Update this account. Password is the only editable field for now.
-            Changing it immediately revokes existing sessions.
+            {isSelf
+              ? 'Changing your password revokes existing sessions. You will be signed out immediately and can sign in with the new password.'
+              : 'Changing this password immediately revokes the user’s existing sessions.'}
           </DialogDescription>
         </DialogHeader>
 

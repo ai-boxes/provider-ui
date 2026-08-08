@@ -137,7 +137,7 @@ function UserTableRow({
       </TableCell>
       <TableCell className="pr-4">
         <div className="flex justify-end">
-          <UserActions user={user} />
+          <UserActions user={user} currentUserId={currentUserId} />
         </div>
       </TableCell>
     </TableRow>
@@ -179,7 +179,7 @@ function UserCard({
       </div>
 
       <div className="border-t pt-4">
-        <UserActions user={user} />
+        <UserActions user={user} currentUserId={currentUserId} />
       </div>
     </Card>
   )

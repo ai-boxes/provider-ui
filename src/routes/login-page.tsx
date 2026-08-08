@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 
 import { AuthPageLayout } from '@/components/layout/auth-page-layout'
 import { CredentialsForm } from '@/features/auth/credentials-form'
+import { readAuthReturnTo } from '@/features/auth/auth-navigation'
 import { establishAuthSession } from '@/features/auth/auth-session'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [mode, setMode] = useState<'login' | 'register'>('login')
 
   return (
@@ -17,7 +19,7 @@ export function LoginPage() {
         onModeChange={setMode}
         onSuccess={(session) => {
           establishAuthSession(session)
-          navigate('/', { replace: true })
+          navigate(readAuthReturnTo(location.state), { replace: true })
         }}
       />
     </AuthPageLayout>

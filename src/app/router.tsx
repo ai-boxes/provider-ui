@@ -83,6 +83,13 @@ export const router = createBrowserRouter([
               },
             ],
           },
+          {
+            path: '*',
+            lazy: async () => {
+              const { NotFoundPage } = await import('@/routes/not-found-page')
+              return { Component: NotFoundPage }
+            },
+          },
         ],
       },
     ],

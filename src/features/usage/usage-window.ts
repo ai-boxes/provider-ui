@@ -27,12 +27,12 @@ export function parseUsageWindow(value: string | null): UsageWindowId {
   )
 }
 
-// Resolved when the request runs rather than when the component renders, so the
-// query key holds only the window and an advancing clock cannot quietly turn
-// caching into polling.
 export function currentUsageRange(id: UsageWindowId): UsageRange {
   const toMs = Date.now()
   const window = usageWindows.find((candidate) => candidate.id === id)
+  if (!window) {
+    throw new TypeError(`unknown usage window: ${id}`)
+  }
 
-  return { fromMs: toMs - (window?.durationMs ?? dayMs), toMs }
+  return { fromMs: toMs - window.durationMs, toMs }
 }

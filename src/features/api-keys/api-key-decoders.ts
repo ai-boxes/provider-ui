@@ -1,11 +1,12 @@
 import type {
-  ApiKeyDetail,
   ApiKeySummary,
+  CreatedApiKey,
 } from '@/features/api-keys/api-key-types'
 import {
   optionalTimestamp,
   requireArray,
   requireBoolean,
+  requireEnum,
   requireNonEmptyString,
   requireRecord,
   requireTimestamp,
@@ -21,29 +22,19 @@ export function decodeApiKey(value: unknown): ApiKeySummary {
   return decodeApiKeySummary(value, 'API key')
 }
 
-export function decodeGeneratedApiKey(value: unknown): string {
-  const record = requireRecord(value, 'generated API key')
-  return requireNonEmptyString(record.key, 'generated API key secret')
-}
-
-export function decodeApiKeyDetail(value: unknown): ApiKeyDetail {
-  const record = requireRecord(value, 'API key detail')
+export function decodeCreatedApiKey(value: unknown): CreatedApiKey {
+  const record = requireRecord(value, 'created API key')
   const common = decodeCommonApiKey(record)
 
   return {
     ...common,
-    key: requireNonEmptyString(record.key, 'API key secret'),
+    key: requireNonEmptyString(record.key, 'created API key secret'),
   }
 }
 
 function decodeApiKeySummary(value: unknown, label: string): ApiKeySummary {
   const record = requireRecord(value, label)
-  const common = decodeCommonApiKey(record)
-
-  return {
-    ...common,
-    maskedKey: requireNonEmptyString(record.key, 'masked API key'),
-  }
+  return decodeCommonApiKey(record)
 }
 
 function decodeCommonApiKey(record: Record<string, unknown>) {
@@ -59,6 +50,11 @@ function decodeCommonApiKey(record: Record<string, unknown>) {
       'API key quota limit',
     ),
     spentUsd: requireUsdAmount(record.spent_usd, 'API key spent amount', true),
+    quotaAccounting: requireEnum(
+      record.quota_accounting,
+      ['ready', 'indeterminate'] as const,
+      'API key quota accounting state',
+    ),
     lastUsedAt: optionalTimestamp(record.last_used_at, 'API key last used time'),
     createdAt: requireTimestamp(record.created_at, 'API key creation time'),
     updatedAt: requireTimestamp(record.updated_at, 'API key update time'),

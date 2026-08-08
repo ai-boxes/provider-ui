@@ -6,6 +6,8 @@ import {
   KeyRoundIcon,
   RefreshCwIcon,
   ShieldOffIcon,
+  TriangleAlertIcon,
+  WalletCardsIcon,
 } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -29,10 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  ApiKeyActions,
-  ApiKeyRevealDialog,
-} from '@/features/api-keys/api-key-actions'
+import { ApiKeyActions } from '@/features/api-keys/api-key-actions'
 import { ApiKeyCreateDialog } from '@/features/api-keys/api-key-create'
 import {
   formatApiKeyDate,
@@ -82,7 +81,6 @@ function ApiKeyCollection({
           <TableHeader>
             <TableRow className="bg-muted/55 hover:bg-muted/55">
               <TableHead className="pl-4">Name</TableHead>
-              <TableHead>API Key</TableHead>
               <TableHead>Group</TableHead>
               <TableHead>Usage</TableHead>
               <TableHead>Expires</TableHead>
@@ -119,14 +117,6 @@ function ApiKeyTableRow({
     <TableRow>
       <TableCell className="py-4 pl-4">
         <span className="font-medium">{apiKey.label}</span>
-      </TableCell>
-      <TableCell>
-        <div className="flex min-w-0 items-center gap-2">
-          <code className="max-w-44 truncate font-mono text-xs tracking-wide text-muted-foreground">
-            {apiKey.maskedKey}
-          </code>
-          <ApiKeyRevealDialog apiKey={apiKey} />
-        </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
         {apiKey.groupLabel}
@@ -165,12 +155,6 @@ function ApiKeyCard({
         <div className="flex items-start justify-between gap-3">
           <span className="font-medium">{apiKey.label}</span>
           <ApiKeyStatusBadge apiKey={apiKey} now={now} />
-        </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <code className="min-w-0 flex-1 truncate font-mono text-xs tracking-wide text-muted-foreground">
-            {apiKey.maskedKey}
-          </code>
-          <ApiKeyRevealDialog apiKey={apiKey} />
         </div>
       </div>
 
@@ -279,24 +263,35 @@ const statusConfig: Record<
     className:
       'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300',
   },
+  exhausted: {
+    label: 'Quota exhausted',
+    icon: WalletCardsIcon,
+    className:
+      'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300',
+  },
+  quota_indeterminate: {
+    label: 'Quota unavailable',
+    icon: TriangleAlertIcon,
+    className:
+      'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300',
+  },
 }
 
 function ApiKeyListLoading() {
   return (
     <>
       <Card className="hidden gap-0 py-0 lg:flex">
-        <div className="grid grid-cols-8 gap-4 border-b bg-muted/35 px-4 py-3">
-          {Array.from({ length: 8 }, (_, index) => (
+        <div className="grid grid-cols-7 gap-4 border-b bg-muted/35 px-4 py-3">
+          {Array.from({ length: 7 }, (_, index) => (
             <Skeleton key={index} className="h-4 w-20" />
           ))}
         </div>
         {Array.from({ length: 3 }, (_, index) => (
           <div
             key={index}
-            className="grid grid-cols-8 items-center gap-4 border-b px-4 py-4 last:border-b-0"
+            className="grid grid-cols-7 items-center gap-4 border-b px-4 py-4 last:border-b-0"
           >
             <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-4 w-36" />
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-4 w-20" />

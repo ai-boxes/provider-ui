@@ -7,13 +7,18 @@ import {
   DatabaseZapIcon,
   RefreshCwIcon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  cacheCompleteness,
+  costCompleteness,
+  tokenCompleteness,
+} from '@/features/usage/usage-completeness'
 import {
   Empty,
   EmptyDescription,
@@ -26,10 +31,10 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select'
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -67,10 +72,12 @@ import type {
   UsageRequestSummary,
   UsageRequestDetail,
   UsageTokenTotals,
+  UsageRange,
   UsageWindowId,
 } from '@/features/usage/usage-types'
 import {
   defaultUsageWindow,
+  currentUsageRange,
   parseUsageWindow,
   usageWindows,
 } from '@/features/usage/usage-window'
@@ -81,6 +88,11 @@ export function UsageOverview() {
   const apiKeyId = searchParams.get('key')
   const modelFilter = searchParams.get('model') ?? ''
   const groupFilter = searchParams.get('group') ?? ''
+  const [rangeRevision, setRangeRevision] = useState(0)
+  const range = useMemo(() => {
+    void rangeRevision
+    return currentUsageRange(windowId)
+  }, [windowId, rangeRevision])
   const listFilters: UsageFilterState = {
     apiKeyId: apiKeyId && apiKeyId.trim() ? apiKeyId : null,
     model: modelFilter.trim() || null,
@@ -93,18 +105,18 @@ export function UsageOverview() {
   const pageCursor = pageCursors[pageIndex] ?? null
 
   const apiKeys = useQuery(apiKeysQueryOptions)
-  const filterOptions = useQuery(usageFilterOptionsQueryOptions(windowId))
+  const filterOptions = useQuery(usageFilterOptionsQueryOptions(range))
 
   // The summary is time-scoped only. Key filtering is reserved for the request list.
-  const overview = useQuery(usageOverviewQueryOptions(windowId))
+  const overview = useQuery(usageOverviewQueryOptions(range))
   const requests = useQuery(
-    usageRequestsQueryOptions(windowId, listFilters, pageCursor),
+    usageRequestsQueryOptions(range, listFilters, pageCursor),
   )
 
   useEffect(() => {
     setPageCursors([null])
     setPageIndex(0)
-  }, [windowId, listFilters.apiKeyId, modelFilter, groupFilter])
+  }, [range.fromMs, range.toMs, listFilters.apiKeyId, modelFilter, groupFilter])
 
   function patchParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams)
@@ -199,10 +211,8 @@ export function UsageOverview() {
             aria-label="Refresh usage"
             title="Refresh usage"
             onClick={() => {
-              void overview.refetch()
-              void requests.refetch()
+              setRangeRevision((current) => current + 1)
               void apiKeys.refetch()
-              void filterOptions.refetch()
             }}
           >
             <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} />
@@ -272,7 +282,7 @@ export function UsageOverview() {
               <>
                 <UsageRequestsTable
                   items={requestItems}
-                  windowId={windowId}
+                  range={range}
                 />
                 <UsageRequestsPagination
                   pageIndex={pageIndex}
@@ -313,7 +323,7 @@ function UsageWindowSelector({
           variant={window.id === value ? 'secondary' : 'ghost'}
           aria-pressed={window.id === value}
           title={window.label}
-          className="h-8 px-3 text-xs"
+          className="px-3 text-xs"
           onClick={() => onSelect(window.id)}
         >
           {window.short}
@@ -329,41 +339,76 @@ function UsageSummary({ overview }: { overview: UsageOverviewData }) {
   }
 
   const { cost, tokens, cache } = overview
+  const tokenState = tokenCompleteness(tokens, overview.trackingGaps)
+  const costState = costCompleteness(cost, overview.trackingGaps)
+  const cacheState = cacheCompleteness(cache, overview.trackingGaps)
   const hitRate = formatCacheHitRate(cache)
   const windowCost =
-    cost.completeAttempts > 0
-      ? formatUsageWindowCost(cost.completeUsd)
-      : '—'
+    costState === 'unavailable'
+      ? 'Unavailable'
+      : formatUsageWindowCost(cost.completeUsd)
+  const cacheRate =
+    cacheState === 'unavailable'
+      ? 'Unavailable'
+      : cacheState === 'reported_only'
+        ? hitRate
+          ? `${hitRate} reported`
+          : 'No reported input'
+        : hitRate ?? '—'
 
   return (
+    <div className="grid gap-3">
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <UsageStat
-          label="Requests"
+          label={overview.trackingGaps > 0 ? 'Recorded requests' : 'Requests'}
           value={formatUsageCount(overview.logicalRequests)}
         />
         <UsageStat
-          label="Input tokens"
-          value={formatUsageCount(tokens.effectiveInput)}
+          label={tokenState === 'complete' ? 'Input tokens' : 'Known input tokens'}
+          value={`${tokenState === 'complete' ? '' : '≥ '}${formatUsageCount(tokens.effectiveInput)}`}
         />
         <UsageStat
-          label="Output tokens"
-          value={formatUsageCount(tokens.output)}
+          label={tokenState === 'complete' ? 'Output tokens' : 'Known output tokens'}
+          value={`${tokenState === 'complete' ? '' : '≥ '}${formatUsageCount(tokens.output)}`}
         />
+        <UsageStat label="Window cost" value={windowCost} />
         <UsageStat
-          label="Window cost"
-          value={windowCost}
+          label={cacheState === 'complete' ? 'Cache hit rate' : 'Reported cache hit rate'}
+          value={cacheRate}
         />
-        <UsageStat label="Cache hit rate" value={hitRate ?? '—'} />
       </div>
+      {tokenState !== 'complete' || costState !== 'complete' || cacheState !== 'complete' ? (
+        <Alert>
+          <CircleAlertIcon />
+          <AlertTitle>Usage is not fully known</AlertTitle>
+          <AlertDescription>
+            {tokenState !== 'complete'
+              ? 'Known token counts are lower bounds. '
+              : null}
+            {costState !== 'complete'
+              ? 'Cost is unavailable because every attempt could not be priced completely. '
+              : null}
+            {cacheState !== 'complete'
+              ? 'Reported cache rate excludes attempts without cache data'
+              : null}
+            {overview.trackingGaps > 0
+              ? `${cacheState !== 'complete' ? ', and ' : ''}${formatUsageCount(overview.trackingGaps)} tracking gap(s) mean recorded values are incomplete.`
+              : cacheState !== 'complete'
+                ? '.'
+                : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </div>
   )
 }
 
 function UsageRequestsTable({
   items,
-  windowId,
+  range,
 }: {
   items: UsageRequestSummary[]
-  windowId: UsageWindowId
+  range: UsageRange
 }) {
   if (items.length === 0) {
     return <UsagePanelEmpty text="No requests match the current filters." />
@@ -408,7 +453,7 @@ function UsageRequestsTable({
                   <CostBreakdown
                     requestId={item.requestId}
                     cost={item.cost}
-                    windowId={windowId}
+                    range={range}
                   />
                 </TableCell>
                 <TableCell>
@@ -432,15 +477,16 @@ function UsageRequestsTable({
 
 function TokensBreakdown({ tokens }: { tokens: UsageTokenTotals }) {
   const total = tokens.effectiveInput + tokens.output
+  const incomplete = tokenCompleteness(tokens) !== 'complete'
 
   return (
-    <HoverCard>
-      <HoverCardTrigger
+    <Popover>
+      <PopoverTrigger
         render={
           <button
             type="button"
-            className="flex min-w-[10.5rem] items-center gap-3 whitespace-nowrap rounded-md text-xs leading-4 tabular-nums outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-            aria-label={`Token breakdown, ${formatUsageCount(total)} total tokens`}
+            className="flex min-h-11 min-w-[10.5rem] items-center gap-3 whitespace-nowrap rounded-md text-xs leading-4 tabular-nums outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-label={`Token breakdown, ${incomplete ? 'at least ' : ''}${formatUsageCount(total)} tokens`}
           />
         }
       >
@@ -448,68 +494,73 @@ function TokensBreakdown({ tokens }: { tokens: UsageTokenTotals }) {
           symbol="↑"
           tone="input"
           value={tokens.effectiveInput}
+          incomplete={tokens.attemptsWithUnknownInput > 0}
         />
         <TokenGlyph
           symbol="↓"
           tone="output"
           value={tokens.output}
+          incomplete={tokens.attemptsWithUnknownOutput > 0}
         />
         <TokenGlyph
           symbol={<DatabaseZapIcon size={13} strokeWidth={2.25} />}
           tone="cache"
           value={tokens.cacheReadInput}
+          incomplete={tokens.attemptsWithUnknownCache > 0}
         />
-      </HoverCardTrigger>
-      <HoverCardContent side="top" align="start" className="w-60 p-3">
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-60 p-3">
         <BreakdownTitle>Token breakdown</BreakdownTitle>
         <div className="mt-2 grid gap-1">
           <BreakdownRow
-            label="Input tokens"
-            value={formatUsageCount(tokens.effectiveInput)}
+            label={tokens.attemptsWithUnknownInput > 0 ? 'Known input tokens' : 'Input tokens'}
+            value={`${tokens.attemptsWithUnknownInput > 0 ? '≥ ' : ''}${formatUsageCount(tokens.effectiveInput)}`}
           />
-          <BreakdownRow label="Output tokens" value={formatUsageCount(tokens.output)} />
-          <BreakdownRow label="Cache read" value={formatUsageCount(tokens.cacheReadInput)} />
+          <BreakdownRow
+            label={tokens.attemptsWithUnknownOutput > 0 ? 'Known output tokens' : 'Output tokens'}
+            value={`${tokens.attemptsWithUnknownOutput > 0 ? '≥ ' : ''}${formatUsageCount(tokens.output)}`}
+          />
+          <BreakdownRow
+            label={tokens.attemptsWithUnknownCache > 0 ? 'Known cache read' : 'Cache read'}
+            value={`${tokens.attemptsWithUnknownCache > 0 ? '≥ ' : ''}${formatUsageCount(tokens.cacheReadInput)}`}
+          />
         </div>
         <div className="my-2 h-px bg-border" />
         <BreakdownRow
-          label="Total tokens"
-          value={formatUsageCount(total)}
+          label={incomplete ? 'Known total tokens' : 'Total tokens'}
+          value={`${incomplete ? '≥ ' : ''}${formatUsageCount(total)}`}
           strong
         />
-        {tokens.attemptsWithUnknownInput > 0 ? (
+        {incomplete ? (
           <p className="mt-2 text-[0.7rem] leading-4 text-muted-foreground">
-            {formatUsageCount(tokens.attemptsWithUnknownInput)} attempt had no
-            reported input count.
+            Some attempts did not report complete token or cache counts.
           </p>
         ) : null}
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   )
 }
 
 function CostBreakdown({
   requestId,
   cost,
-  windowId,
+  range,
 }: {
   requestId: string
   cost: UsageCostTotals
-  windowId: UsageWindowId
+  range: UsageRange
 }) {
-  const complete =
-    cost.completeAttempts > 0 &&
-    cost.partialAttempts === 0 &&
-    cost.unavailableAttempts === 0
+  const completeness = costCompleteness(cost)
 
-  if (!complete) {
-    return <span className="text-muted-foreground">—</span>
+  if (completeness !== 'complete') {
+    return <span className="text-muted-foreground">Unavailable</span>
   }
 
   return (
     <CompleteCostBreakdown
       requestId={requestId}
       total={formatUsageCost(cost.completeUsd)}
-      windowId={windowId}
+      range={range}
     />
   )
 }
@@ -517,36 +568,40 @@ function CostBreakdown({
 function CompleteCostBreakdown({
   requestId,
   total,
-  windowId,
+  range,
 }: {
   requestId: string
   total: string
-  windowId: UsageWindowId
+  range: UsageRange
 }) {
   const [open, setOpen] = useState(false)
   const detail = useQuery({
-    ...usageRequestDetailQueryOptions(requestId, windowId),
+    ...usageRequestDetailQueryOptions(requestId, range),
     enabled: open,
   })
 
   return (
-    <HoverCard open={open} onOpenChange={setOpen}>
-      <HoverCardTrigger
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         render={
           <button
             type="button"
-            className="rounded-md text-left font-medium tabular-nums outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="min-h-11 min-w-11 rounded-md text-left font-medium tabular-nums outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
             aria-label={`Cost breakdown, ${total}`}
           />
         }
       >
         {total}
-      </HoverCardTrigger>
-      <HoverCardContent side="top" align="start" className="w-60 p-3">
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="max-h-[var(--available-height)] w-72 overflow-y-auto p-3"
+      >
         <BreakdownTitle>Cost breakdown</BreakdownTitle>
         <CostBreakdownContent detail={detail} />
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -577,9 +632,37 @@ function CostBreakdownContent({
           label="Cache read cost"
           value={formatOptionalCost(attempt.cost.cacheReadUsd)}
         />
+        <BreakdownRow
+          label="Cache write cost"
+          value={formatOptionalCost(attempt.cost.cacheWriteUsd)}
+        />
+        <BreakdownRow
+          label="Reasoning cost"
+          value={formatOptionalCost(attempt.cost.reasoningUsd)}
+        />
+        <BreakdownRow
+          label="Input audio cost"
+          value={formatOptionalCost(attempt.cost.inputAudioUsd)}
+        />
+        <BreakdownRow
+          label="Output audio cost"
+          value={formatOptionalCost(attempt.cost.outputAudioUsd)}
+        />
       </div>
       <div className="my-2 h-px bg-border" />
       <div className="grid gap-1">
+        <BreakdownRow
+          label="Applied tier"
+          value={attempt.price.tierThresholdTokens === null
+            ? 'Base'
+            : `Over ${formatUsageCount(attempt.price.tierThresholdTokens)} tokens`}
+        />
+        <BreakdownRow
+          label="Pricing context"
+          value={attempt.price.pricingContextTokens === null
+            ? 'Unavailable'
+            : `${formatUsageCount(attempt.price.pricingContextTokens)} tokens`}
+        />
         <BreakdownRow
           label="Input price"
           value={formatOptionalPrice(attempt.price.inputPerMillionUsd)}
@@ -588,11 +671,31 @@ function CostBreakdownContent({
           label="Output price"
           value={formatOptionalPrice(attempt.price.outputPerMillionUsd)}
         />
+        <BreakdownRow
+          label="Cache read price"
+          value={formatOptionalPrice(attempt.price.cacheReadPerMillionUsd)}
+        />
+        <BreakdownRow
+          label="Cache write price"
+          value={formatOptionalPrice(attempt.price.cacheWritePerMillionUsd)}
+        />
+        <BreakdownRow
+          label="Reasoning price"
+          value={formatOptionalPrice(attempt.price.reasoningPerMillionUsd)}
+        />
+        <BreakdownRow
+          label="Input audio price"
+          value={formatOptionalPrice(attempt.price.inputAudioPerMillionUsd)}
+        />
+        <BreakdownRow
+          label="Output audio price"
+          value={formatOptionalPrice(attempt.price.outputAudioPerMillionUsd)}
+        />
       </div>
       <div className="my-2 h-px bg-border" />
       <BreakdownRow
-        label="Total cost"
-        value={formatOptionalCost(attempt.cost.totalUsd)}
+        label={attempt.cost.status === 'partial' ? 'Known total cost' : 'Total cost'}
+        value={`${attempt.cost.status === 'partial' ? '≥ ' : ''}${formatOptionalCost(attempt.cost.totalUsd)}`}
         strong
       />
     </>
@@ -640,10 +743,12 @@ function TokenGlyph({
   symbol,
   tone,
   value,
+  incomplete,
 }: {
   symbol: React.ReactNode
   tone: 'input' | 'output' | 'cache'
   value: number
+  incomplete: boolean
 }) {
   const toneClass =
     tone === 'input'
@@ -664,7 +769,7 @@ function TokenGlyph({
         {symbol}
       </span>
       <span className="font-medium text-foreground">
-        {formatUsageCompactCount(value)}
+        {incomplete ? '≥ ' : ''}{formatUsageCompactCount(value)}
       </span>
     </div>
   )

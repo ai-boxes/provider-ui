@@ -2,14 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CircleAlertIcon,
-  EyeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
   PowerIcon,
   Trash2Icon,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -34,7 +33,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -57,7 +55,6 @@ import {
 } from '@/components/ui/native-select'
 import {
   deleteApiKey,
-  getApiKey,
   updateApiKey,
 } from '@/features/api-keys/api-key-api'
 import { ApiKeyExpirationField } from '@/features/api-keys/api-key-expiration-field'
@@ -65,12 +62,8 @@ import {
   dateTimeLocalToTimestamp,
   toDateTimeLocalValue,
 } from '@/features/api-keys/api-key-format'
-import { ApiKeySecret } from '@/features/api-keys/api-key-secret'
 import { apiKeyKeys } from '@/features/api-keys/api-keys-query'
-import type {
-  ApiKeyDetail,
-  ApiKeySummary,
-} from '@/features/api-keys/api-key-types'
+import type { ApiKeySummary } from '@/features/api-keys/api-key-types'
 import { providersQueryOptions } from '@/features/providers/providers-query'
 import { apiErrorMessage } from '@/lib/api/error'
 import { replaceListItem } from '@/lib/api/query-cache'
@@ -157,96 +150,6 @@ export function ApiKeyActions({
   )
 }
 
-export function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
-  const [open, setOpen] = useState(false)
-  const [detail, setDetail] = useState<ApiKeyDetail | null>(null)
-  const [error, setError] = useState<unknown>(null)
-  const [loading, setLoading] = useState(false)
-  const requestVersion = useRef(0)
-
-  function loadDetail() {
-    const version = ++requestVersion.current
-    setLoading(true)
-    setError(null)
-    setDetail(null)
-
-    void getApiKey(apiKey.id)
-      .then((nextDetail) => {
-        if (requestVersion.current === version) {
-          setDetail(nextDetail)
-        }
-      })
-      .catch((nextError: unknown) => {
-        if (requestVersion.current === version) {
-          setError(nextError)
-        }
-      })
-      .finally(() => {
-        if (requestVersion.current === version) {
-          setLoading(false)
-        }
-      })
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen)
-    if (nextOpen) {
-      loadDetail()
-    } else {
-      requestVersion.current += 1
-      setDetail(null)
-      setError(null)
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="ghost" size="sm" />}>
-        <EyeIcon />
-        View
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{apiKey.label}</DialogTitle>
-          <DialogDescription>
-            Use this credential with a supported client. Keep it private.
-          </DialogDescription>
-        </DialogHeader>
-
-        {loading ? (
-          <div className="flex min-h-24 items-center justify-center text-sm text-muted-foreground">
-            <Loader2Icon className="mr-2 size-4 animate-spin" />
-            Loading key…
-          </div>
-        ) : null}
-
-        {error ? (
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertTitle>Unable to load API key</AlertTitle>
-            <AlertDescription>{errorMessage(error)}</AlertDescription>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
-              onClick={loadDetail}
-            >
-              Retry
-            </Button>
-          </Alert>
-        ) : null}
-
-        {detail ? <ApiKeySecret value={detail.key} /> : null}
-
-        <DialogFooter>
-          <DialogClose render={<Button />}>Done</DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 const editSchema = z
   .object({
     label: z.string().trim().min(1, 'Name is required.'),
@@ -261,17 +164,6 @@ const editSchema = z
         path: ['label'],
         message: 'Name must be 128 bytes or fewer.',
       })
-    }
-
-    if (values.expiresAt) {
-      const timestamp = dateTimeLocalToTimestamp(values.expiresAt)
-      if (timestamp === null || timestamp <= Date.now() / 1000) {
-        context.addIssue({
-          code: 'custom',
-          path: ['expiresAt'],
-          message: 'Choose a future date and time or clear the expiration.',
-        })
-      }
     }
 
     if (values.quotaLimitUsd.trim()) {
@@ -317,22 +209,50 @@ function ApiKeyEditDialog({
     defaultValues: editDefaultValues(apiKey),
   })
   const mutation = useMutation({
-    mutationFn: (values: EditValues) =>
-      updateApiKey({
+    mutationFn: (values: EditValues) => {
+      const dirtyFields = form.formState.dirtyFields
+      return updateApiKey({
         keyId: apiKey.id,
-        label: values.label,
-        groupLabel: values.groupLabel,
-        expiresAt: dateTimeLocalToTimestamp(values.expiresAt),
-        quotaLimitUsd: values.quotaLimitUsd.trim()
-          ? values.quotaLimitUsd.trim()
-          : null,
-    }),
+        ...(dirtyFields.label ? { label: values.label } : {}),
+        ...(dirtyFields.groupLabel
+          ? { groupLabel: values.groupLabel }
+          : {}),
+        ...(dirtyFields.expiresAt
+          ? { expiresAt: dateTimeLocalToTimestamp(values.expiresAt) }
+          : {}),
+        ...(dirtyFields.quotaLimitUsd
+          ? {
+              quotaLimitUsd: values.quotaLimitUsd.trim()
+                ? values.quotaLimitUsd.trim()
+                : null,
+            }
+          : {}),
+      })
+    },
     onSuccess: (updated) => {
       replaceListItem(queryClient, apiKeyKeys.all, updated)
       onOpenChange(false)
     },
   })
   const busy = mutation.isPending
+
+  function submit(values: EditValues) {
+    if (!form.formState.isDirty) {
+      return
+    }
+
+    if (form.formState.dirtyFields.expiresAt && values.expiresAt) {
+      const timestamp = dateTimeLocalToTimestamp(values.expiresAt)
+      if (timestamp === null || timestamp <= Date.now() / 1000) {
+        form.setError('expiresAt', {
+          message: 'Choose a future date and time or clear the expiration.',
+        })
+        return
+      }
+    }
+
+    mutation.mutate(values)
+  }
 
   function handleOpenChange(nextOpen: boolean) {
     if (mutation.isPending) {
@@ -366,7 +286,7 @@ function ApiKeyEditDialog({
 
         <form
           id={`api-key-edit-${apiKey.id}`}
-          onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+          onSubmit={form.handleSubmit(submit)}
         >
           <FieldGroup>
             <Field data-invalid={Boolean(form.formState.errors.label)}>
@@ -437,7 +357,9 @@ function ApiKeyEditDialog({
                 )}
               />
               <FieldDescription>
-                Leave empty for a key that never expires.
+                {apiKey.expiresAt !== null && apiKey.expiresAt <= Date.now() / 1000
+                  ? 'This key is expired. Keep the existing value, choose a future time, or clear it so the key never expires.'
+                  : 'Leave empty for a key that never expires.'}
               </FieldDescription>
               <FieldError errors={[form.formState.errors.expiresAt]} />
             </Field>
@@ -465,7 +387,7 @@ function ApiKeyEditDialog({
           <Button
             type="submit"
             form={`api-key-edit-${apiKey.id}`}
-            disabled={busy}
+            disabled={busy || !form.formState.isDirty}
           >
             {mutation.isPending ? (
               <Loader2Icon className="animate-spin" />

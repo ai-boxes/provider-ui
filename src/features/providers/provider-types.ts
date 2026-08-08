@@ -10,14 +10,9 @@ export type ProviderCredentialKind = 'oauth' | 'api_key'
 
 export type ProviderAuthState = 'active' | 'reauth_required'
 
-export type ProviderModelCatalogSource =
-  | 'remote'
-  | 'cached'
-  | 'built_in'
-  | 'empty'
-
 export type ProviderOAuthStatus =
   | 'pending'
+  | 'provisioning'
   | 'completed'
   | 'failed'
   | 'cancelled'
@@ -169,9 +164,7 @@ export type ProviderModelPricingTier = {
 }
 
 export type ProviderModelCatalogSnapshot = {
-  source: ProviderModelCatalogSource
   models: ProviderModel[]
-  warning: string | null
 }
 
 export type CreatedProviderAccount = {
