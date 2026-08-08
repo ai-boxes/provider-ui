@@ -329,15 +329,12 @@ function UsageWindowSelector({
 }
 
 function UsageSummary({ overview }: { overview: UsageOverviewData }) {
-  if (overview.logicalRequests === 0 && overview.attempts === 0) {
+  if (overview.logicalRequests === 0) {
     return <UsageEmpty />
   }
 
   const { cost, tokens, cache } = overview
-  const windowCost =
-    cost.completeAttempts === 0
-      ? '—'
-      : formatUsageWindowCost(cost.completeUsd)
+  const windowCost = cost.usd === null ? '—' : formatUsageWindowCost(cost.usd)
 
   return (
     <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -497,14 +494,14 @@ function CostBreakdown({
   cost: UsageCostTotals
   range: UsageRange
 }) {
-  if (cost.completeAttempts === 0) {
+  if (cost.usd === null) {
     return <span className="text-muted-foreground">—</span>
   }
 
   return (
     <CompleteCostBreakdown
       requestId={requestId}
-      total={formatUsageCost(cost.completeUsd)}
+      total={formatUsageCost(cost.usd)}
       range={range}
     />
   )
@@ -563,10 +560,7 @@ function CostBreakdownContent({
     return <p className="mt-2 text-xs text-destructive">Unable to load pricing.</p>
   }
 
-  const attempt = detail.data.attempts.find((item) => item.attributed)
-  if (!attempt) {
-    return <p className="mt-2 text-xs text-muted-foreground">—</p>
-  }
+  const attempt = detail.data.attempt
 
   return (
     <>

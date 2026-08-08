@@ -6,12 +6,7 @@ import {
   getUsageRequestDetail,
   getUsageRequests,
 } from '@/features/usage/usage-api'
-import type {
-  UsageAttributionBasis,
-  UsageRange,
-} from '@/features/usage/usage-types'
-
-const usageBasis: UsageAttributionBasis = 'user_final_attempt'
+import type { UsageRange } from '@/features/usage/usage-types'
 
 // Usage changes far less often than provider quota and every read is a database
 // aggregate, so a short stale window is enough for the dashboard.
@@ -25,7 +20,7 @@ export type UsageFilterState = {
 
 export const usageKeys = {
   overview: (range: UsageRange) =>
-    ['usage', 'overview', range.fromMs, range.toMs, usageBasis] as const,
+    ['usage', 'overview', range.fromMs, range.toMs] as const,
   requests: (
     range: UsageRange,
     filters: UsageFilterState,
@@ -36,7 +31,6 @@ export const usageKeys = {
       'requests',
       range.fromMs,
       range.toMs,
-      usageBasis,
       filters.apiKeyId ?? 'all',
       filters.model ?? 'all',
       filters.groupLabel ?? 'all',
@@ -49,7 +43,6 @@ export const usageKeys = {
       requestId,
       range.fromMs,
       range.toMs,
-      usageBasis,
     ] as const,
 }
 
@@ -59,15 +52,15 @@ export function usageRequestDetailQueryOptions(
 ) {
   return queryOptions({
     queryKey: usageKeys.requestDetail(requestId, range),
-    queryFn: () => getUsageRequestDetail(requestId, range, usageBasis),
+    queryFn: () => getUsageRequestDetail(requestId, range),
     staleTime: usageStaleTime,
   })
 }
 
 export function usageFilterOptionsQueryOptions(range: UsageRange) {
   return queryOptions({
-    queryKey: ['usage', 'filters', range.fromMs, range.toMs, usageBasis] as const,
-    queryFn: () => getUsageFilterOptions(range, usageBasis),
+    queryKey: ['usage', 'filters', range.fromMs, range.toMs] as const,
+    queryFn: () => getUsageFilterOptions(range),
     staleTime: usageStaleTime,
   })
 }
@@ -75,7 +68,7 @@ export function usageFilterOptionsQueryOptions(range: UsageRange) {
 export function usageOverviewQueryOptions(range: UsageRange) {
   return queryOptions({
     queryKey: usageKeys.overview(range),
-    queryFn: () => getUsageOverview(range, usageBasis),
+    queryFn: () => getUsageOverview(range),
     staleTime: usageStaleTime,
   })
 }
@@ -88,7 +81,7 @@ export function usageRequestsQueryOptions(
   return queryOptions({
     queryKey: usageKeys.requests(range, filters, cursor),
     queryFn: () =>
-      getUsageRequests(range, usageBasis, {
+      getUsageRequests(range, {
         apiKeyId: filters.apiKeyId,
         model: filters.model,
         groupLabel: filters.groupLabel,
