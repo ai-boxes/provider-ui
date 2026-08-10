@@ -7,7 +7,6 @@ type LatencyScale = {
 
 type LatencyIndicator = {
   color: string
-  progressPercent: number
   tone: 'green' | 'yellow' | 'red'
 }
 
@@ -46,7 +45,6 @@ export function latencyIndicator(
 
   return {
     color: LATENCY_COLORS[tone],
-    progressPercent: Math.min(100, (ms / scale.redMinMs) * 100),
     tone,
   }
 }

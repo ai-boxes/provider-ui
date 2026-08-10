@@ -27,15 +27,13 @@ test('first-token and total latency are calculated independently', () => {
   assert.equal(totalLatencyMs(startedAtMs, 1_840), 840)
 })
 
-test('TTFT and total latency use independent progress scales', () => {
+test('TTFT and total latency use independent status scales', () => {
   assert.deepEqual(latencyIndicator(100, 'ttft'), {
     color: '#22c55e',
-    progressPercent: 100 / 30,
     tone: 'green',
   })
   assert.deepEqual(latencyIndicator(30_000, 'total'), {
     color: '#ef4444',
-    progressPercent: 100,
     tone: 'red',
   })
 })

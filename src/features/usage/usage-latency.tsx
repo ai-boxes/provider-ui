@@ -3,10 +3,7 @@ import {
   formatUsageLatencyMs,
   totalLatencyMs,
 } from '@/features/usage/usage-latency-format'
-import {
-  latencyIndicator,
-  type LatencyMetric,
-} from '@/features/usage/usage-latency-scale'
+import { latencyIndicator } from '@/features/usage/usage-latency-scale'
 
 type UsageLatencyProps = {
   startedAtMs: number
@@ -21,26 +18,42 @@ export function UsageLatency({
 }: UsageLatencyProps) {
   const firstTokenMs = elapsedLatencyMs(startedAtMs, firstTokenAtMs)
   const totalMs = totalLatencyMs(startedAtMs, completedAtMs)
+  const firstTokenIndicator = latencyIndicator(firstTokenMs, 'ttft')
+  const totalIndicator = latencyIndicator(totalMs, 'total')
 
   return (
-    <dl className="grid w-fit grid-cols-[auto_4rem_auto] items-center gap-x-2 gap-y-1 text-xs leading-4 tabular-nums">
-      <LatencyRow label="TTFT" metric="ttft" ms={firstTokenMs} />
-      <LatencyRow label="Total" metric="total" ms={totalMs} />
-    </dl>
+    <div className="flex w-fit items-stretch gap-2">
+      <div
+        aria-hidden
+        className="grid w-1 shrink-0 grid-rows-2 gap-0.5 py-0.5"
+      >
+        <LatencySegment color={firstTokenIndicator?.color} />
+        <LatencySegment color={totalIndicator?.color} />
+      </div>
+      <dl className="grid grid-cols-[auto_auto] gap-x-2 gap-y-0.5 text-xs leading-4 tabular-nums">
+        <LatencyRow label="TTFT" ms={firstTokenMs} />
+        <LatencyRow label="Total" ms={totalMs} />
+      </dl>
+    </div>
+  )
+}
+
+function LatencySegment({ color }: { color: string | undefined }) {
+  return (
+    <span
+      className="block min-h-3 rounded-full bg-muted"
+      style={color ? { backgroundColor: color } : undefined}
+    />
   )
 }
 
 function LatencyRow({
   label,
-  metric,
   ms,
 }: {
   label: 'TTFT' | 'Total'
-  metric: LatencyMetric
   ms: number | null
 }) {
-  const indicator = latencyIndicator(ms, metric)
-
   return (
     <>
       <dt className="text-muted-foreground">
@@ -52,20 +65,6 @@ function LatencyRow({
           label
         )}
       </dt>
-      <dd
-        aria-hidden
-        className="h-1.5 overflow-hidden rounded-full bg-muted shadow-inner"
-      >
-        {indicator ? (
-          <span
-            className="block h-full min-w-0.5 rounded-full"
-            style={{
-              backgroundColor: indicator.color,
-              width: `${indicator.progressPercent}%`,
-            }}
-          />
-        ) : null}
-      </dd>
       <dd className="text-right font-medium text-foreground">
         {formatUsageLatencyMs(ms)}
       </dd>
