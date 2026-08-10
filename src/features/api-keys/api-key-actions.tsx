@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CircleAlertIcon,
   EyeIcon,
@@ -52,44 +52,51 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select'
-import {
   deleteApiKey,
   getApiKey,
   updateApiKey,
 } from '@/features/api-keys/api-key-api'
 import { ApiKeyExpirationField } from '@/features/api-keys/api-key-expiration-field'
+import { ApiKeyProviderGroupField } from '@/features/api-keys/api-key-provider-group-field'
 import {
   dateTimeLocalToTimestamp,
   toDateTimeLocalValue,
 } from '@/features/api-keys/api-key-format'
 import { ApiKeySecret } from '@/features/api-keys/api-key-secret'
-import { apiKeyKeys } from '@/features/api-keys/api-keys-query'
+import {
+  apiKeyKeys,
+  invalidateApiKeyCaches,
+} from '@/features/api-keys/api-keys-query'
 import type {
   ApiKeyDetail,
   ApiKeySummary,
 } from '@/features/api-keys/api-key-types'
-import { providersQueryOptions } from '@/features/providers/providers-query'
+import type { ProviderGroupCatalog } from '@/features/api-keys/provider-group-options'
 import { apiErrorMessage } from '@/lib/api/error'
 import { replaceListItem } from '@/lib/api/query-cache'
 
 export function ApiKeyActions({
   apiKey,
   now,
+  providerGroups,
 }: {
   apiKey: ApiKeySummary
   now: number
+  providerGroups: ProviderGroupCatalog
 }) {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [disableOpen, setDisableOpen] = useState(false)
   const queryClient = useQueryClient()
   const expired = apiKey.expiresAt !== null && apiKey.expiresAt <= now
   const statusMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       updateApiKey({ keyId: apiKey.id, enabled }),
-    onSuccess: (updated) => replaceListItem(queryClient, apiKeyKeys.all, updated),
+    onSuccess: (updated) => {
+      replaceListItem(queryClient, apiKeyKeys.all, updated)
+      invalidateApiKeyCaches(queryClient)
+      setDisableOpen(false)
+    },
   })
 
   return (
@@ -111,7 +118,14 @@ export function ApiKeyActions({
         <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem
             disabled={statusMutation.isPending}
-            onClick={() => statusMutation.mutate(!apiKey.enabled)}
+            onClick={() => {
+              statusMutation.reset()
+              if (apiKey.enabled) {
+                setDisableOpen(true)
+              } else {
+                statusMutation.mutate(true)
+              }
+            }}
           >
             {statusMutation.isPending ? (
               <Loader2Icon className="animate-spin" />
@@ -120,13 +134,17 @@ export function ApiKeyActions({
             )}
             {apiKey.enabled ? 'Disable' : 'Enable'}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setEditOpen(true)}>
+          <DropdownMenuItem
+            disabled={statusMutation.isPending}
+            onClick={() => setEditOpen(true)}
+          >
             <PencilIcon />
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
+            disabled={statusMutation.isPending}
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2Icon />
@@ -145,6 +163,7 @@ export function ApiKeyActions({
       ) : null}
       <ApiKeyEditDialog
         apiKey={apiKey}
+        providerGroups={providerGroups}
         open={editOpen}
         onOpenChange={setEditOpen}
       />
@@ -153,6 +172,49 @@ export function ApiKeyActions({
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
       />
+      <AlertDialog
+        open={disableOpen}
+        onOpenChange={(nextOpen) => {
+          if (!statusMutation.isPending) {
+            setDisableOpen(nextOpen)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <PowerIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Disable {apiKey.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Clients using this key will immediately lose access until you
+              enable it again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {statusMutation.isError ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>Unable to disable API key</AlertTitle>
+              <AlertDescription>{errorMessage(statusMutation.error)}</AlertDescription>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={statusMutation.isPending}>
+              Keep enabled
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={statusMutation.isPending}
+              onClick={() => statusMutation.mutate(false)}
+            >
+              {statusMutation.isPending ? (
+                <Loader2Icon className="animate-spin" />
+              ) : null}
+              Disable API key
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -192,12 +254,12 @@ export function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
     setOpen(nextOpen)
     if (nextOpen) {
       loadDetail()
-    } else {
-      requestVersion.current += 1
-      setDetail(null)
-      setError(null)
-      setLoading(false)
+      return
     }
+    requestVersion.current += 1
+    setDetail(null)
+    setError(null)
+    setLoading(false)
   }
 
   return (
@@ -250,7 +312,11 @@ export function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
 const editSchema = z
   .object({
     label: z.string().trim().min(1, 'Name is required.'),
-    groupLabel: z.string().trim().min(1, 'Provider group is required.'),
+    groupLabel: z
+      .string()
+      .trim()
+      .min(1, 'Provider group is required.')
+      .max(64, 'Provider group must be 64 characters or fewer.'),
     expiresAt: z.string(),
     quotaLimitUsd: z.string(),
   })
@@ -282,25 +348,16 @@ type EditValues = z.infer<typeof editSchema>
 
 function ApiKeyEditDialog({
   apiKey,
+  providerGroups,
   open,
   onOpenChange,
 }: {
   apiKey: ApiKeySummary
+  providerGroups: ProviderGroupCatalog
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
   const queryClient = useQueryClient()
-  const providers = useQuery({
-    ...providersQueryOptions,
-    enabled: open,
-  })
-  const groupLabels = Array.from(
-    new Set(
-      (providers.data ?? [])
-        .filter((account) => account.enabled)
-        .map((account) => account.groupLabel.trim()),
-    ),
-  ).sort((left, right) => left.localeCompare(right))
   const form = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: editDefaultValues(apiKey),
@@ -328,6 +385,7 @@ function ApiKeyEditDialog({
     },
     onSuccess: (updated) => {
       replaceListItem(queryClient, apiKeyKeys.all, updated)
+      invalidateApiKeyCaches(queryClient)
       onOpenChange(false)
     },
   })
@@ -405,35 +463,22 @@ function ApiKeyEditDialog({
               <FieldLabel htmlFor={`api-key-group-${apiKey.id}`}>
                 Provider group
               </FieldLabel>
-              <NativeSelect
-                id={`api-key-group-${apiKey.id}`}
-                className="w-full"
-                disabled={busy || providers.isPending}
-                aria-invalid={Boolean(form.formState.errors.groupLabel)}
-                {...form.register('groupLabel')}
-              >
-                <NativeSelectOption value="">
-                  {providers.isPending
-                    ? 'Loading groups…'
-                    : groupLabels.length
-                      ? 'Select a group'
-                      : 'No groups available'}
-                </NativeSelectOption>
-                {groupLabels.map((groupLabel) => (
-                  <NativeSelectOption key={groupLabel} value={groupLabel}>
-                    {groupLabel}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              <FieldDescription>
-                Uses provider accounts that share this group label.
-              </FieldDescription>
+              <Controller
+                control={form.control}
+                name="groupLabel"
+                render={({ field }) => (
+                  <ApiKeyProviderGroupField
+                    id={`api-key-group-${apiKey.id}`}
+                    value={field.value}
+                    onChange={field.onChange}
+                    catalog={providerGroups}
+                    currentGroup={apiKey.groupLabel}
+                    disabled={busy}
+                    invalid={Boolean(form.formState.errors.groupLabel)}
+                  />
+                )}
+              />
               <FieldError errors={[form.formState.errors.groupLabel]} />
-              {providers.isError ? (
-                <p role="alert" className="text-xs text-destructive">
-                  Unable to load provider accounts.
-                </p>
-              ) : null}
             </Field>
 
             <Field data-invalid={Boolean(form.formState.errors.expiresAt)}>
@@ -480,7 +525,12 @@ function ApiKeyEditDialog({
         </form>
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose
+            disabled={busy}
+            render={<Button variant="outline" disabled={busy} />}
+          >
+            Cancel
+          </DialogClose>
           <Button
             type="submit"
             form={`api-key-edit-${apiKey.id}`}
@@ -513,6 +563,7 @@ function ApiKeyDeleteDialog({
       queryClient.setQueryData<ApiKeySummary[]>(apiKeyKeys.all, (keys) =>
         keys?.filter((key) => key.id !== apiKey.id),
       )
+      invalidateApiKeyCaches(queryClient)
       onOpenChange(false)
     },
   })

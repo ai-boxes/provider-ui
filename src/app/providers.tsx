@@ -50,5 +50,5 @@ function isSetupStatusQuery(queryKey: readonly unknown[]): boolean {
 }
 
 function authUserId(state: AuthState): string | null {
-  return 'session' in state ? state.session.user.id : null
+  return state.status === 'authenticated' ? state.user.id : null
 }

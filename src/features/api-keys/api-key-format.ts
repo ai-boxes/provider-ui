@@ -6,7 +6,6 @@ export type ApiKeyStatus =
   | 'disabled'
   | 'expired'
   | 'exhausted'
-  | 'quota_indeterminate'
 
 export function getApiKeyStatus(
   key: ApiKeySummary,
@@ -18,13 +17,6 @@ export function getApiKeyStatus(
 
   if (!key.enabled) {
     return 'disabled'
-  }
-
-  if (
-    key.quotaLimitUsd !== null &&
-    key.quotaAccounting === 'indeterminate'
-  ) {
-    return 'quota_indeterminate'
   }
 
   if (

@@ -430,7 +430,12 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
         </form>
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+          <DialogClose
+            disabled={updateAccount.isPending}
+            render={
+              <Button variant="outline" disabled={updateAccount.isPending} />
+            }
+          >
             Cancel
           </DialogClose>
           <Button

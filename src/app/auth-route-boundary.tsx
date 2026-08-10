@@ -30,11 +30,11 @@ export function AuthRouteBoundary() {
     enabled: authState.status === 'anonymous',
   })
 
-  if (authState.status === 'loading' || authState.status === 'restoring') {
+  if (authState.status === 'loading') {
     return (
       <AuthStatusCard
         title="Restoring session"
-        description="Checking your saved session."
+        description="Checking your browser session."
         busy
       />
     )
@@ -87,8 +87,13 @@ export function AuthRouteBoundary() {
         title="Unable to check setup"
         description="The server could not be reached. Check your connection and try again."
         actions={
-          <Button className="w-full" onClick={() => void setupStatus.refetch()}>
-            Retry
+          <Button
+            className="w-full"
+            disabled={setupStatus.isFetching}
+            onClick={() => void setupStatus.refetch()}
+          >
+            {setupStatus.isFetching ? <Spinner /> : null}
+            {setupStatus.isFetching ? 'Retrying…' : 'Retry'}
           </Button>
         }
       />

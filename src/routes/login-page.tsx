@@ -17,8 +17,8 @@ export function LoginPage() {
         key={mode}
         mode={mode}
         onModeChange={setMode}
-        onSuccess={(session) => {
-          establishAuthSession(session)
+        onSuccess={(user) => {
+          establishAuthSession(user)
           navigate(readAuthReturnTo(location.state), { replace: true })
         }}
       />

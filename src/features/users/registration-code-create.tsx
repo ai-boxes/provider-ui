@@ -121,7 +121,10 @@ export function RegistrationCodeCreateDialog() {
         )}
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+          <DialogClose
+            disabled={code.isPending}
+            render={<Button variant="outline" disabled={code.isPending} />}
+          >
             {code.data ? 'Done' : 'Cancel'}
           </DialogClose>
           {!code.data ? (

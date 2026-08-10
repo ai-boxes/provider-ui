@@ -10,6 +10,17 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -52,12 +63,16 @@ export function UserEnabledControl({
   user: ManagedUser
   currentUserId: string
 }) {
+  const [disableOpen, setDisableOpen] = useState(false)
   const queryClient = useQueryClient()
   const isSelf = user.id === currentUserId
   const mutation = useMutation({
     mutationFn: (enabled: boolean) =>
       updateUserEnabled({ userId: user.id, enabled }),
-    onSuccess: (updated) => replaceListItem(queryClient, userKeys.all, updated),
+    onSuccess: (updated) => {
+      replaceListItem(queryClient, userKeys.all, updated)
+      setDisableOpen(false)
+    },
   })
 
   const switchControl = (
@@ -72,7 +87,14 @@ export function UserEnabledControl({
             ? 'Disable user'
             : 'Enable user'
       }
-      onCheckedChange={(enabled) => mutation.mutate(enabled)}
+      onCheckedChange={(enabled) => {
+        mutation.reset()
+        if (enabled) {
+          mutation.mutate(true)
+        } else {
+          setDisableOpen(true)
+        }
+      }}
     />
   )
 
@@ -102,6 +124,52 @@ export function UserEnabledControl({
           {errorMessage(mutation.error, 'Unable to update user status.')}
         </span>
       ) : null}
+      <AlertDialog
+        open={disableOpen}
+        onOpenChange={(nextOpen) => {
+          if (!mutation.isPending) {
+            setDisableOpen(nextOpen)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <CircleAlertIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Disable {user.username}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This immediately revokes the user&apos;s sessions and permanently
+              disables all of their API keys. Re-enabling the account does not
+              re-enable those keys.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {mutation.isError ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>Unable to disable user</AlertTitle>
+              <AlertDescription>
+                {errorMessage(mutation.error, 'Unable to update user status.')}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={mutation.isPending}>
+              Keep enabled
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={mutation.isPending}
+              onClick={() => mutation.mutate(false)}
+            >
+              {mutation.isPending ? (
+                <Loader2Icon className="animate-spin" />
+              ) : null}
+              Disable user
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -221,7 +289,12 @@ function UserEditDialog({
         </form>
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose
+            disabled={submitting}
+            render={<Button variant="outline" disabled={submitting} />}
+          >
+            Cancel
+          </DialogClose>
           <Button
             type="submit"
             form={`user-edit-${user.id}`}

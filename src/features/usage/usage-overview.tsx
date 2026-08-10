@@ -49,11 +49,9 @@ import {
   formatUsagePrice,
   formatUsageCount,
   formatUsageDateTime,
-  formatUsageLatencyMs,
-  elapsedLatencyMs,
   formatUsageRange,
-  totalLatencyMs,
 } from '@/features/usage/usage-format'
+import { UsageLatency } from '@/features/usage/usage-latency'
 import {
   usageFilterOptionsQueryOptions,
   usageOverviewQueryOptions,
@@ -159,7 +157,11 @@ export function UsageOverview() {
     })
   }
 
-  const isFetching = overview.isFetching || requests.isFetching
+  const isFetching =
+    overview.isFetching ||
+    requests.isFetching ||
+    apiKeys.isFetching ||
+    filterOptions.isFetching
 
   const requestItems = requests.data?.requests ?? []
   const modelOptions = filterOptions.data?.models ?? []
@@ -168,6 +170,40 @@ export function UsageOverview() {
   const nextCursor = requests.data?.nextCursor ?? null
   const canGoPrevious = pageIndex > 0
   const canGoNext = Boolean(nextCursor)
+  const overviewContent = overview.isPending ? (
+    <UsageOverviewLoading />
+  ) : overview.isError ? (
+    <UsageOverviewError
+      busy={overview.isFetching}
+      onRetry={() => void overview.refetch()}
+    />
+  ) : (
+    <UsageSummary overview={overview.data} />
+  )
+  const requestContent = requests.isPending ? (
+    <UsageTableSkeleton rows={6} cols={8} />
+  ) : requests.isError ? (
+    <UsageInlineError
+      busy={requests.isFetching}
+      onRetry={() => void requests.refetch()}
+    />
+  ) : (
+    <>
+      <UsageRequestsTable items={requestItems} range={range} />
+      {requestItems.length > 0 ? (
+        <UsageRequestsPagination
+          pageIndex={pageIndex}
+          pageSize={requests.data.pageSize}
+          itemCount={requestItems.length}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          isFetching={requests.isFetching}
+          onPrevious={goPreviousPage}
+          onNext={goNextPage}
+        />
+      ) : null}
+    </>
+  )
 
   function goPreviousPage() {
     if (!canGoPrevious) {
@@ -216,13 +252,9 @@ export function UsageOverview() {
         }
       />
 
-      {overview.isPending ? <UsageOverviewLoading /> : null}
-      {overview.isError ? (
-        <UsageOverviewError onRetry={() => void overview.refetch()} />
-      ) : null}
-      {overview.data ? <UsageSummary overview={overview.data} /> : null}
+      {overviewContent}
 
-      {overview.data ? (
+      {overview.isSuccess ? (
         <UsageSection title="Requests">
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -269,28 +301,14 @@ export function UsageOverview() {
                 </NativeSelect>
             </div>
 
-            {requests.isPending ? <UsageTableSkeleton rows={6} cols={8} /> : null}
-            {requests.isError ? (
-              <UsageInlineError onRetry={() => void requests.refetch()} />
+            {apiKeys.isError || filterOptions.isError ? (
+              <p role="alert" className="text-xs text-destructive">
+                Some filter options could not be loaded. Refresh usage to try
+                again.
+              </p>
             ) : null}
-            {requests.data ? (
-              <>
-                <UsageRequestsTable
-                  items={requestItems}
-                  range={range}
-                />
-                <UsageRequestsPagination
-                  pageIndex={pageIndex}
-                  pageSize={requests.data.pageSize}
-                  itemCount={requestItems.length}
-                  canGoPrevious={canGoPrevious}
-                  canGoNext={canGoNext}
-                  isFetching={requests.isFetching}
-                  onPrevious={goPreviousPage}
-                  onNext={goNextPage}
-                />
-              </>
-            ) : null}
+
+            {requestContent}
           </div>
         </UsageSection>
       ) : null}
@@ -410,7 +428,7 @@ function UsageRequestsTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <LatencyBreakdown
+                  <UsageLatency
                     startedAtMs={item.startedAtMs}
                     firstTokenAtMs={item.firstTokenAtMs}
                     completedAtMs={item.completedAtMs}
@@ -712,61 +730,6 @@ function TokenGlyph({
   )
 }
 
-function LatencyBreakdown({
-  startedAtMs,
-  firstTokenAtMs,
-  completedAtMs,
-}: {
-  startedAtMs: number
-  firstTokenAtMs: number | null
-  completedAtMs: number
-}) {
-  const firstTokenMs = elapsedLatencyMs(startedAtMs, firstTokenAtMs)
-  const totalMs = totalLatencyMs(startedAtMs, completedAtMs)
-
-  return (
-    <div className="flex w-fit items-stretch gap-1.5">
-      <LatencyVerticalBar ms={totalMs} />
-      <div className="space-y-0.5 text-xs leading-4 tabular-nums">
-        <span className="block font-medium text-foreground">
-          {formatUsageLatencyMs(firstTokenMs)}
-        </span>
-        <span className="block font-medium text-foreground">
-          {formatUsageLatencyMs(totalMs)}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-// Vertical strip: green = fast, yellow = slow. Color is continuous on a
-// 0–10s scale; missing totals stay muted instead of pretending to be zero.
-const LATENCY_BAR_FULL_MS = 10_000
-
-function LatencyVerticalBar({ ms }: { ms: number | null }) {
-  const color =
-    ms === null
-      ? 'var(--muted-foreground)'
-      : latencyTone(Math.max(0, Math.min(1, ms / LATENCY_BAR_FULL_MS)))
-
-  return (
-    <div
-      aria-hidden
-      title={ms === null ? undefined : formatUsageLatencyMs(ms)}
-      className="w-1.5 shrink-0 self-stretch rounded-full"
-      style={{ backgroundColor: color }}
-    />
-  )
-}
-
-function latencyTone(ratio: number): string {
-  // 0 → green, 0.5 → lime/yellow, 1 → amber/yellow
-  const hue = 145 - ratio * 70
-  const chroma = 0.14 + ratio * 0.04
-  const lightness = 0.72 + ratio * 0.06
-  return `oklch(${lightness.toFixed(3)} ${chroma.toFixed(3)} ${hue.toFixed(1)})`
-}
-
 function UsageRequestsPagination({
   pageIndex,
   pageSize,
@@ -922,7 +885,13 @@ function UsageTableSkeleton({ rows, cols }: { rows: number; cols: number }) {
   )
 }
 
-function UsageOverviewError({ onRetry }: { onRetry: () => void }) {
+function UsageOverviewError({
+  busy,
+  onRetry,
+}: {
+  busy: boolean
+  onRetry: () => void
+}) {
   return (
     <Alert className="max-w-2xl">
       <CircleAlertIcon />
@@ -934,16 +903,23 @@ function UsageOverviewError({ onRetry }: { onRetry: () => void }) {
         variant="outline"
         size="sm"
         className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+        disabled={busy}
         onClick={onRetry}
       >
-        <RefreshCwIcon />
-        Retry
+        <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+        {busy ? 'Retrying…' : 'Retry'}
       </Button>
     </Alert>
   )
 }
 
-function UsageInlineError({ onRetry }: { onRetry: () => void }) {
+function UsageInlineError({
+  busy,
+  onRetry,
+}: {
+  busy: boolean
+  onRetry: () => void
+}) {
   return (
     <Alert>
       <CircleAlertIcon />
@@ -953,10 +929,11 @@ function UsageInlineError({ onRetry }: { onRetry: () => void }) {
         variant="outline"
         size="sm"
         className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+        disabled={busy}
         onClick={onRetry}
       >
-        <RefreshCwIcon />
-        Retry
+        <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+        {busy ? 'Retrying…' : 'Retry'}
       </Button>
     </Alert>
   )

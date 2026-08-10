@@ -1,6 +1,7 @@
-import { Navigate, createBrowserRouter } from 'react-router'
+import { createBrowserRouter } from 'react-router'
 
 import { AuthRouteBoundary } from '@/app/auth-route-boundary'
+import { HomeRedirect } from '@/app/home-redirect'
 import { SuperAdminRouteBoundary } from '@/app/super-admin-route-boundary'
 import { LoginPage } from '@/routes/login-page'
 import { SetupPage } from '@/routes/setup-page'
@@ -28,34 +29,7 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Navigate to="/providers" replace />,
-          },
-          {
-            path: '/providers',
-            lazy: async () => {
-              const { ProvidersPage } = await import(
-                '@/routes/providers-page'
-              )
-              return { Component: ProvidersPage }
-            },
-          },
-          {
-            path: '/providers/new',
-            lazy: async () => {
-              const { NewProviderPage } = await import(
-                '@/routes/new-provider-page'
-              )
-              return { Component: NewProviderPage }
-            },
-          },
-          {
-            path: '/providers/:accountId',
-            lazy: async () => {
-              const { ProviderDetailPage } = await import(
-                '@/routes/provider-detail-page'
-              )
-              return { Component: ProviderDetailPage }
-            },
+            Component: HomeRedirect,
           },
           {
             path: '/api-keys',
@@ -74,6 +48,33 @@ export const router = createBrowserRouter([
           {
             Component: SuperAdminRouteBoundary,
             children: [
+              {
+                path: '/providers',
+                lazy: async () => {
+                  const { ProvidersPage } = await import(
+                    '@/routes/providers-page'
+                  )
+                  return { Component: ProvidersPage }
+                },
+              },
+              {
+                path: '/providers/new',
+                lazy: async () => {
+                  const { NewProviderPage } = await import(
+                    '@/routes/new-provider-page'
+                  )
+                  return { Component: NewProviderPage }
+                },
+              },
+              {
+                path: '/providers/:accountId',
+                lazy: async () => {
+                  const { ProviderDetailPage } = await import(
+                    '@/routes/provider-detail-page'
+                  )
+                  return { Component: ProviderDetailPage }
+                },
+              },
               {
                 path: '/users',
                 lazy: async () => {

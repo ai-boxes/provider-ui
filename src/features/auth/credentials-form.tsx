@@ -21,19 +21,21 @@ import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { login, register, setupInitialUser } from '@/features/auth/auth-api'
 import type {
-  AuthSession,
+  AuthUser,
   RegistrationCredentials,
 } from '@/features/auth/auth-types'
 import { ApiError } from '@/lib/api/error'
 
 type CredentialsMode = 'login' | 'register' | 'setup'
-type CredentialInput = RegistrationCredentials
+type CredentialInput = RegistrationCredentials & {
+  passwordConfirmation: string
+}
 type CredentialField = keyof CredentialInput
 type CredentialErrors = Partial<Record<CredentialField, string>>
 
 type CredentialsFormProps = {
   mode: CredentialsMode
-  onSuccess: (session: AuthSession) => void
+  onSuccess: (user: AuthUser) => void
   onModeChange?: (mode: 'login' | 'register') => void
   onSetupConflict?: () => void
 }
@@ -64,6 +66,9 @@ export function CredentialsForm({
     const credentials = {
       username: String(formData.get('username') ?? '').trim(),
       password: String(formData.get('password') ?? ''),
+      passwordConfirmation: String(
+        formData.get('passwordConfirmation') ?? '',
+      ),
       invitationCode: String(formData.get('invitationCode') ?? '').trim(),
     }
     const nextErrors = validateCredentials(credentials, mode)
@@ -104,6 +109,7 @@ export function CredentialsForm({
               variant="ghost"
               size="sm"
               className="shrink-0"
+              disabled={mutation.isPending}
               onClick={() =>
                 onModeChange?.(mode === 'login' ? 'register' : 'login')
               }
@@ -169,6 +175,31 @@ export function CredentialsForm({
                 {fieldErrors.password}
               </FieldError>
             </Field>
+
+            {mode === 'setup' ? (
+              <Field data-invalid={Boolean(fieldErrors.passwordConfirmation)}>
+                <FieldLabel htmlFor="setup-password-confirmation">
+                  Confirm password
+                </FieldLabel>
+                <Input
+                  id="setup-password-confirmation"
+                  name="passwordConfirmation"
+                  type="password"
+                  autoComplete="new-password"
+                  aria-invalid={Boolean(fieldErrors.passwordConfirmation)}
+                  aria-describedby={
+                    fieldErrors.passwordConfirmation
+                      ? 'setup-password-confirmation-error'
+                      : undefined
+                  }
+                  disabled={mutation.isPending}
+                  onChange={() => handleFieldChange('passwordConfirmation')}
+                />
+                <FieldError id="setup-password-confirmation-error">
+                  {fieldErrors.passwordConfirmation}
+                </FieldError>
+              </Field>
+            ) : null}
 
             {mode === 'register' ? (
               <Field data-invalid={Boolean(fieldErrors.invitationCode)}>
@@ -265,6 +296,14 @@ function validateCredentials(
     errors.invitationCode = 'Enter your invitation code.'
   }
 
+  if (mode === 'setup') {
+    if (credentials.passwordConfirmation.length === 0) {
+      errors.passwordConfirmation = 'Confirm your password.'
+    } else if (credentials.passwordConfirmation !== credentials.password) {
+      errors.passwordConfirmation = 'Passwords do not match.'
+    }
+  }
+
   return errors
 }
 
@@ -319,7 +358,7 @@ function submissionErrorMessage(
 async function submitCredentials(
   mode: CredentialsMode,
   credentials: CredentialInput,
-): Promise<AuthSession> {
+): Promise<AuthUser> {
   const userCredentials = {
     username: credentials.username,
     password: credentials.password,

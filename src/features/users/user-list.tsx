@@ -40,13 +40,25 @@ export function UserList() {
   const authState = useAuthState()
   const users = useQuery(usersQueryOptions)
   const currentUserId =
-    authState.status === 'authenticated' ? authState.session.user.id : ''
+    authState.status === 'authenticated' ? authState.user.id : ''
+  const content = users.isPending ? (
+    <UserListLoading />
+  ) : users.isError ? (
+    <UserListError
+      busy={users.isFetching}
+      onRetry={() => void users.refetch()}
+    />
+  ) : users.data.length === 0 ? (
+    <UserListEmpty />
+  ) : (
+    <UserCollection users={users.data} currentUserId={currentUserId} />
+  )
 
   return (
     <section className="flex flex-1 flex-col gap-6">
       <PageHeader
         title="Users"
-        description="Manage who can sign in to this control plane. Provider access continues to follow ownership and visibility rules."
+        description="Manage who can sign in. Provider configuration remains restricted to super administrators."
         actions={
           <div className="flex flex-wrap gap-2">
             <RegistrationCodeCreateDialog />
@@ -55,14 +67,7 @@ export function UserList() {
         }
       />
 
-      {users.isPending ? <UserListLoading /> : null}
-      {users.isError ? (
-        <UserListError onRetry={() => void users.refetch()} />
-      ) : null}
-      {users.data?.length === 0 ? <UserListEmpty /> : null}
-      {users.data && users.data.length > 0 ? (
-        <UserCollection users={users.data} currentUserId={currentUserId} />
-      ) : null}
+      {content}
     </section>
   )
 }
@@ -270,7 +275,13 @@ function UserListLoading() {
   )
 }
 
-function UserListError({ onRetry }: { onRetry: () => void }) {
+function UserListError({
+  busy,
+  onRetry,
+}: {
+  busy: boolean
+  onRetry: () => void
+}) {
   return (
     <Alert className="max-w-2xl">
       <CircleAlertIcon />
@@ -282,10 +293,11 @@ function UserListError({ onRetry }: { onRetry: () => void }) {
         variant="outline"
         size="sm"
         className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+        disabled={busy}
         onClick={onRetry}
       >
-        <RefreshCwIcon />
-        Retry
+        <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+        {busy ? 'Retrying…' : 'Retry'}
       </Button>
     </Alert>
   )

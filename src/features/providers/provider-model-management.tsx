@@ -462,7 +462,12 @@ export function ProviderModelEditDialog({
         </form>
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+          <DialogClose
+            disabled={updateModel.isPending}
+            render={
+              <Button variant="outline" disabled={updateModel.isPending} />
+            }
+          >
             Cancel
           </DialogClose>
           <Button

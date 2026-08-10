@@ -50,6 +50,18 @@ import { formatUnixSeconds } from '@/lib/datetime'
 
 export function ProviderList({ currentUserId }: { currentUserId: string }) {
   const providers = useQuery(providersQueryOptions)
+  const content = providers.isPending ? (
+    <ProviderListLoading />
+  ) : providers.isError ? (
+    <ProviderListError
+      busy={providers.isFetching}
+      onRetry={() => void providers.refetch()}
+    />
+  ) : providers.data.length === 0 ? (
+    <ProviderListEmpty />
+  ) : (
+    <ProviderAccounts accounts={providers.data} currentUserId={currentUserId} />
+  )
 
   return (
     <section className="flex flex-1 flex-col gap-6">
@@ -64,17 +76,7 @@ export function ProviderList({ currentUserId }: { currentUserId: string }) {
         }
       />
 
-      {providers.isPending ? <ProviderListLoading /> : null}
-      {providers.isError ? (
-        <ProviderListError onRetry={() => void providers.refetch()} />
-      ) : null}
-      {providers.data?.length === 0 ? <ProviderListEmpty /> : null}
-      {providers.data && providers.data.length > 0 ? (
-        <ProviderAccounts
-          accounts={providers.data}
-          currentUserId={currentUserId}
-        />
-      ) : null}
+      {content}
     </section>
   )
 }
@@ -425,7 +427,13 @@ function ProviderListLoading() {
   )
 }
 
-function ProviderListError({ onRetry }: { onRetry: () => void }) {
+function ProviderListError({
+  busy,
+  onRetry,
+}: {
+  busy: boolean
+  onRetry: () => void
+}) {
   return (
     <Alert className="max-w-2xl">
       <CircleAlertIcon />
@@ -437,10 +445,11 @@ function ProviderListError({ onRetry }: { onRetry: () => void }) {
         variant="outline"
         size="sm"
         className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+        disabled={busy}
         onClick={onRetry}
       >
-        <RefreshCwIcon />
-        Retry
+        <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+        {busy ? 'Retrying…' : 'Retry'}
       </Button>
     </Alert>
   )
@@ -454,10 +463,10 @@ function ProviderListEmpty() {
           <EmptyMedia variant="icon" className="size-10 rounded-xl">
             <BoxesIcon />
           </EmptyMedia>
-          <EmptyTitle>No providers available</EmptyTitle>
+          <EmptyTitle>No providers configured</EmptyTitle>
           <EmptyDescription>
-            This user does not own any provider accounts and no accounts have
-            been shared with them.
+            Add the first upstream Provider account to make a routing group
+            available.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -470,6 +479,15 @@ function getProviderStatus(account: ProviderAccount): {
   icon: typeof CircleCheckIcon
   className: string
 } {
+  if (account.authState === 'reauth_required') {
+    return {
+      label: 'Reauthentication required',
+      icon: CircleAlertIcon,
+      className:
+        'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300',
+    }
+  }
+
   if (account.enabled) {
     return {
       label: 'Activated',

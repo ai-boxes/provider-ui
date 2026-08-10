@@ -6,7 +6,6 @@ import {
   KeyRoundIcon,
   RefreshCwIcon,
   ShieldOffIcon,
-  TriangleAlertIcon,
   WalletCardsIcon,
 } from 'lucide-react'
 
@@ -44,28 +43,53 @@ import {
 } from '@/features/api-keys/api-key-format'
 import { apiKeysQueryOptions } from '@/features/api-keys/api-keys-query'
 import type { ApiKeySummary } from '@/features/api-keys/api-key-types'
+import {
+  availableProviderGroups,
+  type ProviderGroupCatalog,
+} from '@/features/api-keys/provider-group-options'
+import { providersQueryOptions } from '@/features/providers/providers-query'
 import { formatUsageCost } from '@/features/usage/usage-format'
 import { useMinuteNow } from '@/hooks/use-minute-now'
 
 export function ApiKeyList() {
   const apiKeys = useQuery(apiKeysQueryOptions)
+  const providers = useQuery(providersQueryOptions)
   const now = useMinuteNow()
+  const providerGroups: ProviderGroupCatalog = {
+    values: availableProviderGroups(providers.data ?? []),
+    status: providers.isPending
+      ? 'loading'
+      : providers.isError
+        ? 'error'
+        : 'ready',
+    refreshing: providers.isFetching,
+    retry: () => void providers.refetch(),
+  }
+  const content = apiKeys.isPending ? (
+    <ApiKeyListLoading />
+  ) : apiKeys.isError ? (
+    <ApiKeyListError
+      busy={apiKeys.isFetching}
+      onRetry={() => void apiKeys.refetch()}
+    />
+  ) : apiKeys.data.length === 0 ? (
+    <ApiKeyListEmpty />
+  ) : (
+    <ApiKeyCollection
+      apiKeys={apiKeys.data}
+      now={now}
+      providerGroups={providerGroups}
+    />
+  )
 
   return (
     <section className="flex flex-1 flex-col gap-6">
       <PageHeader
         title="API keys"
         description="Issue scoped credentials and monitor expiration, spending limits, and access status."
-        actions={<ApiKeyCreateDialog />}
+        actions={<ApiKeyCreateDialog providerGroups={providerGroups} />}
       />
-      {apiKeys.isPending ? <ApiKeyListLoading /> : null}
-      {apiKeys.isError ? (
-        <ApiKeyListError onRetry={() => void apiKeys.refetch()} />
-      ) : null}
-      {apiKeys.data?.length === 0 ? <ApiKeyListEmpty /> : null}
-      {apiKeys.data && apiKeys.data.length > 0 ? (
-        <ApiKeyCollection apiKeys={apiKeys.data} now={now} />
-      ) : null}
+      {content}
     </section>
   )
 }
@@ -73,9 +97,11 @@ export function ApiKeyList() {
 function ApiKeyCollection({
   apiKeys,
   now,
+  providerGroups,
 }: {
   apiKeys: ApiKeySummary[]
   now: number
+  providerGroups: ProviderGroupCatalog
 }) {
   return (
     <>
@@ -95,7 +121,12 @@ function ApiKeyCollection({
           </TableHeader>
           <TableBody>
             {apiKeys.map((apiKey) => (
-              <ApiKeyTableRow key={apiKey.id} apiKey={apiKey} now={now} />
+              <ApiKeyTableRow
+                key={apiKey.id}
+                apiKey={apiKey}
+                now={now}
+                providerGroups={providerGroups}
+              />
             ))}
           </TableBody>
         </Table>
@@ -103,7 +134,12 @@ function ApiKeyCollection({
 
       <div className="grid gap-3 lg:hidden">
         {apiKeys.map((apiKey) => (
-          <ApiKeyCard key={apiKey.id} apiKey={apiKey} now={now} />
+          <ApiKeyCard
+            key={apiKey.id}
+            apiKey={apiKey}
+            now={now}
+            providerGroups={providerGroups}
+          />
         ))}
       </div>
     </>
@@ -113,9 +149,11 @@ function ApiKeyCollection({
 function ApiKeyTableRow({
   apiKey,
   now,
+  providerGroups,
 }: {
   apiKey: ApiKeySummary
   now: number
+  providerGroups: ProviderGroupCatalog
 }) {
   return (
     <TableRow>
@@ -147,7 +185,11 @@ function ApiKeyTableRow({
       </TableCell>
       <TableCell className="pr-4">
         <div className="flex justify-end">
-          <ApiKeyActions apiKey={apiKey} now={now} />
+          <ApiKeyActions
+            apiKey={apiKey}
+            now={now}
+            providerGroups={providerGroups}
+          />
         </div>
       </TableCell>
     </TableRow>
@@ -157,9 +199,11 @@ function ApiKeyTableRow({
 function ApiKeyCard({
   apiKey,
   now,
+  providerGroups,
 }: {
   apiKey: ApiKeySummary
   now: number
+  providerGroups: ProviderGroupCatalog
 }) {
   return (
     <Card className="gap-4 p-4">
@@ -202,7 +246,11 @@ function ApiKeyCard({
       </div>
 
       <div className="border-t pt-4">
-        <ApiKeyActions apiKey={apiKey} now={now} />
+        <ApiKeyActions
+          apiKey={apiKey}
+          now={now}
+          providerGroups={providerGroups}
+        />
       </div>
     </Card>
   )
@@ -287,12 +335,6 @@ const statusConfig: Record<
     className:
       'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300',
   },
-  quota_indeterminate: {
-    label: 'Quota unavailable',
-    icon: TriangleAlertIcon,
-    className:
-      'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300',
-  },
 }
 
 function ApiKeyListLoading() {
@@ -344,7 +386,13 @@ function ApiKeyListLoading() {
   )
 }
 
-function ApiKeyListError({ onRetry }: { onRetry: () => void }) {
+function ApiKeyListError({
+  busy,
+  onRetry,
+}: {
+  busy: boolean
+  onRetry: () => void
+}) {
   return (
     <Alert className="max-w-2xl">
       <CircleAlertIcon />
@@ -356,10 +404,11 @@ function ApiKeyListError({ onRetry }: { onRetry: () => void }) {
         variant="outline"
         size="sm"
         className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+        disabled={busy}
         onClick={onRetry}
       >
-        <RefreshCwIcon />
-        Retry
+        <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+        {busy ? 'Retrying…' : 'Retry'}
       </Button>
     </Alert>
   )

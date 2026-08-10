@@ -12,44 +12,16 @@ import type {
   UsageRange,
   UsageRequests,
 } from '@/features/usage/usage-types'
-
-export type UsageQueryFilters = {
-  apiKeyId?: string | null
-  model?: string | null
-  groupLabel?: string | null
-  cursor?: string | null
-}
-
-function rangeParams(
-  range: UsageRange,
-  extra?: Record<string, string>,
-  filters?: UsageQueryFilters,
-): URLSearchParams {
-  const params = new URLSearchParams({
-    from_ms: String(range.fromMs),
-    to_ms: String(range.toMs),
-    ...extra,
-  })
-  if (filters?.apiKeyId) {
-    params.set('api_key_id', filters.apiKeyId)
-  }
-  if (filters?.model) {
-    params.set('model', filters.model)
-  }
-  if (filters?.groupLabel) {
-    params.set('group', filters.groupLabel)
-  }
-  if (filters?.cursor) {
-    params.set('cursor', filters.cursor)
-  }
-  return params
-}
+import {
+  usageQueryParams,
+  type UsageQueryFilters,
+} from '@/features/usage/usage-query-params'
 
 export async function getUsageOverview(
   range: UsageRange,
 ): Promise<UsageOverview> {
   return requestAuthenticatedData(
-    `/api/v1/usage/overview?${rangeParams(range).toString()}`,
+    `/api/v1/usage/overview?${usageQueryParams(range).toString()}`,
     decodeUsageOverview,
   )
 }
@@ -58,7 +30,7 @@ export async function getUsageFilterOptions(
   range: UsageRange,
 ): Promise<UsageFilterOptions> {
   return requestAuthenticatedData(
-    `/api/v1/usage/filters?${rangeParams(range).toString()}`,
+    `/api/v1/usage/filters?${usageQueryParams(range).toString()}`,
     decodeUsageFilterOptions,
   )
 }
@@ -68,7 +40,7 @@ export async function getUsageRequests(
   filters?: UsageQueryFilters,
 ): Promise<UsageRequests> {
   return requestAuthenticatedData(
-    `/api/v1/usage/requests?${rangeParams(range, undefined, filters).toString()}`,
+    `/api/v1/usage/requests?${usageQueryParams(range, filters).toString()}`,
     decodeUsageRequests,
   )
 }
@@ -78,7 +50,7 @@ export async function getUsageRequestDetail(
   range: UsageRange,
 ): Promise<UsageRequestDetail> {
   return requestAuthenticatedData(
-    `/api/v1/usage/requests/${encodeURIComponent(requestId)}?${rangeParams(range).toString()}`,
+    `/api/v1/usage/requests/${encodeURIComponent(requestId)}?${usageQueryParams(range).toString()}`,
     decodeUsageRequestDetail,
   )
 }

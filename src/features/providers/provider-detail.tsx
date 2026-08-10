@@ -101,6 +101,7 @@ export function ProviderDetail({
     return (
       <ProviderDetailError
         error={account.error}
+        busy={account.isFetching}
         onRetry={() => void account.refetch()}
       />
     )
@@ -159,6 +160,17 @@ export function ProviderDetail({
         </Alert>
       ) : null}
 
+      {account.data.authState === 'reauth_required' ? (
+        <Alert>
+          <CircleAlertIcon />
+          <AlertTitle>Reauthentication required</AlertTitle>
+          <AlertDescription>
+            This Provider credential is no longer valid. Update or replace its
+            credential before routing traffic through this account.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <ProviderOverview
         account={account.data}
         ownedByCurrentUser={ownedByCurrentUser}
@@ -168,6 +180,7 @@ export function ProviderDetail({
       <ProviderModels
         models={models.data}
         pending={models.isPending}
+        fetching={models.isFetching}
         error={models.error}
         accountId={accountId}
         canManage={ownedByCurrentUser}
@@ -256,6 +269,7 @@ function ProviderOverview({
 function ProviderModels({
   models,
   pending,
+  fetching,
   error,
   accountId,
   canManage,
@@ -263,11 +277,22 @@ function ProviderModels({
 }: {
   models: ProviderModel[] | undefined
   pending: boolean
+  fetching: boolean
   error: unknown
   accountId: string
   canManage: boolean
   onRetry: () => void
 }) {
+  const content = pending ? (
+    <ModelsLoading />
+  ) : error ? (
+    <ModelsError busy={fetching} onRetry={onRetry} />
+  ) : models?.length === 0 ? (
+    <ModelsEmpty />
+  ) : models ? (
+    <ModelsTable models={models} accountId={accountId} canManage={canManage} />
+  ) : null
+
   return (
     <Card>
       <CardHeader className="border-b">
@@ -286,16 +311,7 @@ function ProviderModels({
         </div>
       </CardHeader>
       <CardContent className="px-0">
-        {pending ? <ModelsLoading /> : null}
-        {error ? <ModelsError onRetry={onRetry} /> : null}
-        {models?.length === 0 ? <ModelsEmpty /> : null}
-        {models && models.length > 0 ? (
-          <ModelsTable
-            models={models}
-            accountId={accountId}
-            canManage={canManage}
-          />
-        ) : null}
+        {content}
       </CardContent>
     </Card>
   )
@@ -642,6 +658,18 @@ function DetailField({
 }
 
 function AccountStatusBadge({ account }: { account: ProviderAccount }) {
+  if (account.authState === 'reauth_required') {
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1.5 border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+      >
+        <CircleAlertIcon />
+        Reauthentication required
+      </Badge>
+    )
+  }
+
   if (account.enabled) {
     return (
       <Badge
@@ -716,9 +744,11 @@ function ProviderDetailLoading() {
 
 function ProviderDetailError({
   error,
+  busy,
   onRetry,
 }: {
   error: unknown
+  busy: boolean
   onRetry: () => void
 }) {
   const notFound = error instanceof ApiError && error.status === 404
@@ -741,9 +771,9 @@ function ProviderDetailError({
         </EmptyHeader>
         <div className="flex gap-2">
           {!notFound ? (
-            <Button variant="outline" onClick={onRetry}>
-              <RefreshCwIcon />
-              Retry
+            <Button variant="outline" disabled={busy} onClick={onRetry}>
+              <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+              {busy ? 'Retrying…' : 'Retry'}
             </Button>
           ) : null}
           <Button nativeButton={false} render={<Link to="/providers" />}>
@@ -773,7 +803,13 @@ function ModelsLoading() {
   )
 }
 
-function ModelsError({ onRetry }: { onRetry: () => void }) {
+function ModelsError({
+  busy,
+  onRetry,
+}: {
+  busy: boolean
+  onRetry: () => void
+}) {
   return (
     <div className="p-4">
       <Alert>
@@ -786,10 +822,11 @@ function ModelsError({ onRetry }: { onRetry: () => void }) {
           variant="outline"
           size="sm"
           className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+          disabled={busy}
           onClick={onRetry}
         >
-          <RefreshCwIcon />
-          Retry
+          <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+          {busy ? 'Retrying…' : 'Retry'}
         </Button>
       </Alert>
     </div>

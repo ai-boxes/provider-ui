@@ -8,7 +8,6 @@ export type ApiKeySummary = {
   expiresAt: number | null
   quotaLimitUsd: string | null
   spentUsd: string
-  quotaAccounting: 'ready' | 'indeterminate'
   lastUsedAt: number | null
   createdAt: number
   updatedAt: number
@@ -23,6 +22,7 @@ export type CreatedApiKey = Omit<ApiKeySummary, 'maskedKey'> & {
 }
 
 export type CreateApiKeyInput = {
+  key: string
   label: string
   groupLabel: string
   expiresAt: number | null

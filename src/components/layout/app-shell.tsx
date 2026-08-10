@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   BoxesIcon,
   ChartNoAxesColumnIcon,
@@ -45,22 +45,30 @@ const primaryNavigation = [
     label: 'Providers',
     href: '/providers',
     icon: BoxesIcon,
+    superAdminOnly: true,
   },
   {
     label: 'API Keys',
     href: '/api-keys',
     icon: KeyRoundIcon,
+    superAdminOnly: false,
   },
   {
     label: 'Usage',
     href: '/usage',
     icon: ChartNoAxesColumnIcon,
+    superAdminOnly: false,
   },
 ] as const
 
 export function AppShell() {
   const authState = useAuthState()
   const location = useLocation()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0 })
+  }, [location.pathname, location.search])
 
   if (authState.status !== 'authenticated') {
     return null
@@ -68,7 +76,7 @@ export function AppShell() {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar user={authState.user} />
       <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-background">
         <header className="z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/85 px-4 backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -78,9 +86,12 @@ export function AppShell() {
               {getPageTitle(location.pathname)}
             </span>
           </div>
-          <UserMenu user={authState.session.user} />
+          <UserMenu user={authState.user} />
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+        <div
+          ref={scrollContainerRef}
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10"
+        >
           <div className="mx-auto flex w-full max-w-7xl flex-col pb-10">
             <Outlet />
           </div>
@@ -90,7 +101,7 @@ export function AppShell() {
   )
 }
 
-function AppSidebar() {
+function AppSidebar({ user }: { user: AuthUser }) {
   const { isMobile, setOpenMobile } = useSidebar()
 
   function closeMobileSidebar() {
@@ -107,7 +118,12 @@ function AppSidebar() {
             <SidebarMenuButton
               size="lg"
               tooltip="Provider"
-              render={<NavLink to="/providers" onClick={closeMobileSidebar} />}
+              render={
+                <NavLink
+                  to={user.role === 'super_admin' ? '/providers' : '/api-keys'}
+                  onClick={closeMobileSidebar}
+                />
+              }
               className="hover:bg-transparent active:bg-transparent"
             >
               <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm shadow-sidebar-primary/20">
@@ -129,7 +145,9 @@ function AppSidebar() {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <NavigationMenu
-              items={primaryNavigation}
+              items={primaryNavigation.filter(
+                (item) => !item.superAdminOnly || user.role === 'super_admin',
+              )}
               onNavigate={closeMobileSidebar}
             />
           </SidebarGroupContent>
@@ -145,6 +163,7 @@ type NavigationItem = {
   label: string
   href: string
   icon: typeof BoxesIcon
+  superAdminOnly: boolean
 }
 
 function NavigationMenu({
