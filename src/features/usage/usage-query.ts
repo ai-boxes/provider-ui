@@ -19,6 +19,8 @@ export type UsageFilterState = {
 }
 
 export const usageKeys = {
+  filters: (range: UsageRange) =>
+    ['usage', 'filters', range.fromMs, range.toMs] as const,
   overview: (range: UsageRange) =>
     ['usage', 'overview', range.fromMs, range.toMs] as const,
   requests: (
@@ -59,9 +61,10 @@ export function usageRequestDetailQueryOptions(
 
 export function usageFilterOptionsQueryOptions(range: UsageRange) {
   return queryOptions({
-    queryKey: ['usage', 'filters', range.fromMs, range.toMs] as const,
+    queryKey: usageKeys.filters(range),
     queryFn: () => getUsageFilterOptions(range),
     staleTime: usageStaleTime,
+    retry: 1,
   })
 }
 

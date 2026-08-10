@@ -22,10 +22,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select'
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -52,6 +48,7 @@ import {
   formatUsageRange,
 } from '@/features/usage/usage-format'
 import { UsageLatency } from '@/features/usage/usage-latency'
+import { UsageRequestFilters } from '@/features/usage/usage-request-filters'
 import {
   usageFilterOptionsQueryOptions,
   usageOverviewQueryOptions,
@@ -157,15 +154,9 @@ export function UsageOverview() {
     })
   }
 
-  const isFetching =
-    overview.isFetching ||
-    requests.isFetching ||
-    apiKeys.isFetching ||
-    filterOptions.isFetching
+  const isFetching = overview.isFetching || requests.isFetching
 
   const requestItems = requests.data?.requests ?? []
-  const modelOptions = filterOptions.data?.models ?? []
-  const groupOptions = filterOptions.data?.groups ?? []
 
   const nextCursor = requests.data?.nextCursor ?? null
   const canGoPrevious = pageIndex > 0
@@ -257,56 +248,16 @@ export function UsageOverview() {
       {overview.isSuccess ? (
         <UsageSection title="Requests">
           <div className="flex min-w-0 flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-                <NativeSelect
-                  aria-label="API key filter"
-                  className="h-8 w-44"
-                  value={listFilters.apiKeyId ?? ''}
-                  onChange={(event) => selectApiKey(event.target.value)}
-                >
-                  <NativeSelectOption value="">API Key</NativeSelectOption>
-                  {(apiKeys.data ?? []).map((apiKey) => (
-                    <NativeSelectOption key={apiKey.id} value={apiKey.id}>
-                      {apiKey.label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                <NativeSelect
-                  aria-label="Model filter"
-                  className="h-8 w-48"
-                  value={modelFilter}
-                  onChange={(event) => selectModel(event.target.value)}
-                  disabled={filterOptions.isPending}
-                >
-                  <NativeSelectOption value="">Model</NativeSelectOption>
-                  {modelOptions.map((model) => (
-                    <NativeSelectOption key={model} value={model}>
-                      {model}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                <NativeSelect
-                  aria-label="Group filter"
-                  className="h-8 w-40"
-                  value={groupFilter}
-                  onChange={(event) => selectGroup(event.target.value)}
-                  disabled={filterOptions.isPending}
-                >
-                  <NativeSelectOption value="">Group</NativeSelectOption>
-                  {groupOptions.map((group) => (
-                    <NativeSelectOption key={group} value={group}>
-                      {group}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-            </div>
-
-            {apiKeys.isError || filterOptions.isError ? (
-              <p role="alert" className="text-xs text-destructive">
-                Some filter options could not be loaded. Refresh usage to try
-                again.
-              </p>
-            ) : null}
+            <UsageRequestFilters
+              apiKeyId={listFilters.apiKeyId ?? ''}
+              model={modelFilter}
+              group={groupFilter}
+              apiKeys={apiKeys}
+              filterOptions={filterOptions}
+              onSelectApiKey={selectApiKey}
+              onSelectModel={selectModel}
+              onSelectGroup={selectGroup}
+            />
 
             {requestContent}
           </div>
@@ -617,7 +568,7 @@ function CostBreakdownContent({
         <BreakdownRow
           label="Pricing context"
           value={attempt.price.pricingContextTokens === null
-            ? '—'
+            ? null
             : `${formatUsageCount(attempt.price.pricingContextTokens)} tokens`}
         />
         <BreakdownRow
@@ -659,12 +610,12 @@ function CostBreakdownContent({
   )
 }
 
-function formatOptionalCost(value: string | null): string {
-  return value === null ? '—' : formatUsageCostDetailed(value)
+function formatOptionalCost(value: string | null): string | null {
+  return value === null ? null : formatUsageCostDetailed(value)
 }
 
-function formatOptionalPrice(value: string | null): string {
-  return value === null ? '—' : formatUsagePrice(value)
+function formatOptionalPrice(value: string | null): string | null {
+  return value === null ? null : formatUsagePrice(value)
 }
 
 function BreakdownTitle({ children }: { children: React.ReactNode }) {
@@ -677,9 +628,13 @@ function BreakdownRow({
   strong = false,
 }: {
   label: string
-  value: string
+  value: string | null
   strong?: boolean
 }) {
+  if (value === null) {
+    return null
+  }
+
   return (
     <div className="flex items-baseline justify-between gap-4 text-xs">
       <span className="text-muted-foreground">{label}</span>
