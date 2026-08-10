@@ -32,17 +32,19 @@ test('TTFT and total latency use independent status scales', () => {
     color: '#22c55e',
     tone: 'green',
   })
-  assert.deepEqual(latencyIndicator(30_000, 'total'), {
+  assert.deepEqual(latencyIndicator(300_000, 'total'), {
     color: '#ef4444',
     tone: 'red',
   })
 })
 
 test('latency status moves from green to yellow to red', () => {
-  assert.equal(latencyIndicator(1_000, 'ttft')?.tone, 'green')
-  assert.equal(latencyIndicator(1_001, 'ttft')?.tone, 'yellow')
-  assert.equal(latencyIndicator(3_000, 'ttft')?.tone, 'red')
-  assert.equal(latencyIndicator(10_000, 'total')?.tone, 'green')
-  assert.equal(latencyIndicator(10_001, 'total')?.tone, 'yellow')
-  assert.equal(latencyIndicator(30_000, 'total')?.tone, 'red')
+  assert.equal(latencyIndicator(29_999, 'ttft')?.tone, 'green')
+  assert.equal(latencyIndicator(30_000, 'ttft')?.tone, 'yellow')
+  assert.equal(latencyIndicator(59_999, 'ttft')?.tone, 'yellow')
+  assert.equal(latencyIndicator(60_000, 'ttft')?.tone, 'red')
+  assert.equal(latencyIndicator(59_999, 'total')?.tone, 'green')
+  assert.equal(latencyIndicator(60_000, 'total')?.tone, 'yellow')
+  assert.equal(latencyIndicator(299_999, 'total')?.tone, 'yellow')
+  assert.equal(latencyIndicator(300_000, 'total')?.tone, 'red')
 })

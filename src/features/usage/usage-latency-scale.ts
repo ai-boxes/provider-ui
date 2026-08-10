@@ -12,12 +12,12 @@ type LatencyIndicator = {
 
 const LATENCY_SCALES: Record<LatencyMetric, LatencyScale> = {
   ttft: {
-    greenMaxMs: 1_000,
-    redMinMs: 3_000,
+    greenMaxMs: 30_000,
+    redMinMs: 60_000,
   },
   total: {
-    greenMaxMs: 10_000,
-    redMinMs: 30_000,
+    greenMaxMs: 60_000,
+    redMinMs: 300_000,
   },
 }
 
@@ -37,7 +37,7 @@ export function latencyIndicator(
 
   const scale = LATENCY_SCALES[metric]
   const tone =
-    ms <= scale.greenMaxMs
+    ms < scale.greenMaxMs
       ? 'green'
       : ms < scale.redMinMs
         ? 'yellow'
