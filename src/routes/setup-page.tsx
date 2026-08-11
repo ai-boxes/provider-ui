@@ -17,9 +17,9 @@ export function SetupPage() {
     <AuthPageLayout>
       <CredentialsForm
         mode="setup"
-        onSuccess={(session) => {
+        onSuccess={(user) => {
           queryClient.setQueryData(setupStatusQueryKey, { required: false })
-          establishAuthSession(session)
+          establishAuthSession(user)
           navigate('/', { replace: true })
         }}
         onSetupConflict={() => {

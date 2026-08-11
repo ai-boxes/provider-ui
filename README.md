@@ -1,32 +1,49 @@
-# React + TypeScript + Vite
+# provider-ui
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Management UI for the self-hosted provider gateway. It talks to `provider-core`
+through the same-origin management API and, in production, serves the
+Codex/Claude-compatible surface as an nginx reverse proxy.
 
-Currently, two official plugins are available:
+Stack: React 19 + TypeScript + Vite 8 + Tailwind CSS 4, with feature modules
+under `src/features/`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Development
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The dev server proxies `/api/*` to the target from `API_PROXY_TARGET`
+(set in `.env.local` or inline):
+
+```bash
+API_PROXY_TARGET=http://127.0.0.1:8317 npm run dev
+```
+
+`/v1/*` (the Codex / Claude-compatible surface) is not proxied in dev; point
+clients directly at core, e.g. `http://127.0.0.1:8317/v1`.
+
+## Scripts
+
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Vite dev server with HMR |
+| `npm run build` | Type-check (`tsc -b`) and production build |
+| `npm run lint` | Oxlint |
+| `npm test` | Unit tests in `tests/*.test.ts` |
+| `npm run preview` | Preview the production build |
+
+## Layout
+
+- `src/app/` — router, auth boundaries, app providers
+- `src/features/` — per-domain UI: auth, providers, api-keys, usage, users
+- `src/routes/` — page-level route components
+- `src/lib/` — shared API client, decoders, formatting
+- `src/components/ui/` — shadcn-style UI primitives
+
+## Production
+
+The `Dockerfile` builds a static bundle served by nginx; the container also
+reverse-proxies `/api/*` and `/v1/*` to `provider-core` on the Compose network.
+See the repository root `README.md` for the full deployment.

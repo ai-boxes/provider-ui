@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useMinuteNow } from '@/hooks/use-minute-now'
 import {
   getProviderQuota,
   refreshProviderQuota,
@@ -37,24 +36,7 @@ import type {
   ProviderQuotaMetric,
   ProviderQuotaPeriod,
 } from '@/features/providers/provider-types'
-
-const dateFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-})
-
-const shortDateFormatter = new Intl.DateTimeFormat('en', {
-  month: 'short',
-  day: 'numeric',
-})
-
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', {
-  numeric: 'auto',
-})
+import { formatUnixSeconds } from '@/lib/datetime'
 
 const percentFormatter = new Intl.NumberFormat('en', {
   maximumFractionDigits: 1,
@@ -500,8 +482,6 @@ function QuotaMetricSummary({
 }
 
 function PeriodSummary({ period }: { period: ProviderQuotaPeriod | null }) {
-  const now = useMinuteNow()
-
   if (!period) {
     return null
   }
@@ -520,18 +500,17 @@ function PeriodSummary({ period }: { period: ProviderQuotaPeriod | null }) {
   }
 
   const endDate = new Date(period.endsAt * 1000)
-
-  const fullDate = dateFormatter.format(endDate)
+  const fullDate = formatUnixSeconds(period.endsAt)
 
   return (
     <span className="text-xs text-muted-foreground">
-      {periodLabel} · {formatResetTime(period.endsAt, now)} ·{' '}
+      {periodLabel} · resets{' '}
       <time
         dateTime={endDate.toISOString()}
         title={fullDate}
         aria-label={`Resets ${fullDate}`}
       >
-        {shortDateFormatter.format(endDate)}
+        {fullDate}
       </time>
     </span>
   )
@@ -544,15 +523,12 @@ function QuotaFreshness({
   quota: ProviderQuota
   compact?: boolean
 }) {
-  const now = useMinuteNow()
-
   if (!quota.snapshot) {
     return null
   }
 
   const timestamp = quota.snapshot.fetchedAt
-  const label = formatRelativeTimestamp(timestamp, now)
-  const fullTimestamp = dateTimeFormatter.format(new Date(timestamp * 1000))
+  const fullTimestamp = formatUnixSeconds(timestamp)
 
   const fetchedAt = new Date(timestamp * 1000)
 
@@ -566,10 +542,10 @@ function QuotaFreshness({
           aria-label={`Quota updated ${fullTimestamp}`}
         >
           {quota.lastError
-            ? `Last data ${label} · refresh failed`
+            ? `Last data ${fullTimestamp} · refresh failed`
             : quota.freshness === 'stale'
-              ? `Updated ${label} · refresh recommended`
-              : `Updated ${label}`}
+              ? `Updated ${fullTimestamp} · refresh recommended`
+              : `Updated ${fullTimestamp}`}
         </time>
       </span>
     )
@@ -584,7 +560,7 @@ function QuotaFreshness({
           title={fullTimestamp}
           aria-label={`Quota updated ${fullTimestamp}`}
         >
-          Updated {label}
+          Updated {fullTimestamp}
         </time>
       </span>
       {quota.lastError ? (
@@ -927,46 +903,3 @@ function titleCase(value: string): string {
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase())
 }
-
-function formatRelativeTimestamp(timestamp: number, now: number): string {
-  const seconds = Math.min(0, Math.round(timestamp - now))
-  const absoluteSeconds = Math.abs(seconds)
-
-  if (absoluteSeconds < 60) {
-    return 'just now'
-  }
-
-  const minutes = Math.round(seconds / 60)
-  if (Math.abs(minutes) < 60) {
-    return relativeTimeFormatter.format(minutes, 'minute')
-  }
-
-  const hours = Math.round(minutes / 60)
-  if (Math.abs(hours) < 24) {
-    return relativeTimeFormatter.format(hours, 'hour')
-  }
-
-  return relativeTimeFormatter.format(Math.round(hours / 24), 'day')
-}
-
-function formatResetTime(timestamp: number, now: number): string {
-  const remainingMilliseconds = (timestamp - now) * 1000
-
-  if (remainingMilliseconds <= 0) {
-    return 'reset time passed'
-  }
-
-  const minutes = Math.ceil(remainingMilliseconds / 60_000)
-  if (minutes < 60) {
-    return `resets ${relativeTimeFormatter.format(minutes, 'minute')}`
-  }
-
-  const hours = Math.ceil(remainingMilliseconds / 3_600_000)
-  if (hours < 24) {
-    return `resets ${relativeTimeFormatter.format(hours, 'hour')}`
-  }
-
-  const days = Math.ceil(remainingMilliseconds / 86_400_000)
-  return `resets ${relativeTimeFormatter.format(days, 'day')}`
-}
-

@@ -31,21 +31,29 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import {
-  createApiKey,
-  generateApiKey,
-} from '@/features/api-keys/api-key-api'
+import { createApiKey } from '@/features/api-keys/api-key-api'
 import { ApiKeyExpirationField } from '@/features/api-keys/api-key-expiration-field'
+import { ApiKeyProviderGroupField } from '@/features/api-keys/api-key-provider-group-field'
 import { dateTimeLocalToTimestamp } from '@/features/api-keys/api-key-format'
 import { ApiKeySecret } from '@/features/api-keys/api-key-secret'
-import { apiKeyKeys } from '@/features/api-keys/api-keys-query'
-import type { ApiKeyDetail } from '@/features/api-keys/api-key-types'
+import { invalidateApiKeyCaches } from '@/features/api-keys/api-keys-query'
+import type { ProviderGroupCatalog } from '@/features/api-keys/provider-group-options'
 import { apiErrorMessage } from '@/lib/api/error'
 
 const apiKeyCreateSchema = z
   .object({
-    label: z.string().trim().min(1, 'Label is required.'),
-    key: z.string(),
+    label: z.string().trim().min(1, 'Name is required.'),
+    groupLabel: z
+      .string()
+      .trim()
+      .min(1, 'Provider group is required.')
+      .max(64, 'Provider group must be 64 characters or fewer.'),
+    key: z
+      .string()
+      .min(1, 'API key is required.')
+      .max(1024, 'API key must be 1024 characters or fewer.')
+      .regex(/^[!-~]+$/, 'Use non-whitespace ASCII characters only.'),
+    quotaLimitUsd: z.string(),
     expiresAt: z.string(),
   })
   .superRefine((values, context) => {
@@ -53,32 +61,22 @@ const apiKeyCreateSchema = z
       context.addIssue({
         code: 'custom',
         path: ['label'],
-        message: 'Label must be 128 bytes or fewer.',
+        message: 'Name must be 128 bytes or fewer.',
       })
     }
 
-    if ([...values.key].length < 16) {
-      context.addIssue({
-        code: 'custom',
-        path: ['key'],
-        message: 'Key must contain at least 16 characters.',
-      })
-    }
-
-    if (!/^[A-Za-z0-9_-]+$/.test(values.key)) {
-      context.addIssue({
-        code: 'custom',
-        path: ['key'],
-        message: 'Use only letters, numbers, hyphens, and underscores.',
-      })
-    }
-
-    if (new TextEncoder().encode(values.key).length > 256) {
-      context.addIssue({
-        code: 'custom',
-        path: ['key'],
-        message: 'Key must be 256 bytes or fewer.',
-      })
+    if (values.quotaLimitUsd.trim()) {
+      if (
+        !/^\d+(\.\d{1,14})?$/.test(values.quotaLimitUsd.trim()) ||
+        !/[1-9]/.test(values.quotaLimitUsd)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['quotaLimitUsd'],
+          message:
+            'Use a positive USD amount (e.g. 10 or 12.5) or leave empty for unlimited.',
+        })
+      }
     }
 
     if (values.expiresAt) {
@@ -97,17 +95,24 @@ type ApiKeyCreateValues = z.infer<typeof apiKeyCreateSchema>
 
 const defaultValues: ApiKeyCreateValues = {
   label: '',
+  groupLabel: '',
   key: '',
+  quotaLimitUsd: '',
   expiresAt: '',
 }
 
-export function ApiKeyCreateDialog() {
+export function ApiKeyCreateDialog({
+  providerGroups,
+}: {
+  providerGroups: ProviderGroupCatalog
+}) {
   const [open, setOpen] = useState(false)
-  const [createdKey, setCreatedKey] = useState<ApiKeyDetail | null>(null)
+  const [createdKey, setCreatedKey] = useState<{
+    label: string
+    key: string
+  } | null>(null)
   const [requestError, setRequestError] = useState<unknown>(null)
-  const [generateError, setGenerateError] = useState<unknown>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const queryClient = useQueryClient()
   const form = useForm<ApiKeyCreateValues>({
     resolver: zodResolver(apiKeyCreateSchema),
@@ -115,30 +120,12 @@ export function ApiKeyCreateDialog() {
   })
 
   function handleOpenChange(nextOpen: boolean) {
-    if (submitting || generating) {
+    if (submitting) {
       return
     }
 
     setOpen(nextOpen)
     resetDialog()
-  }
-
-  async function generate() {
-    setGenerating(true)
-    setGenerateError(null)
-
-    try {
-      const key = await generateApiKey()
-      form.setValue('key', key, {
-        shouldDirty: true,
-        shouldTouch: true,
-        shouldValidate: true,
-      })
-    } catch (error) {
-      setGenerateError(error)
-    } finally {
-      setGenerating(false)
-    }
   }
 
   async function submit(values: ApiKeyCreateValues) {
@@ -147,16 +134,15 @@ export function ApiKeyCreateDialog() {
 
     try {
       const created = await createApiKey({
-        label: values.label,
         key: values.key,
+        label: values.label,
+        groupLabel: values.groupLabel,
+        quotaLimitUsd: values.quotaLimitUsd.trim() || null,
         expiresAt: dateTimeLocalToTimestamp(values.expiresAt),
       })
       form.reset(defaultValues)
-      setCreatedKey(created)
-      void queryClient.invalidateQueries({
-        queryKey: apiKeyKeys.all,
-        exact: true,
-      })
+      setCreatedKey({ label: created.label, key: created.key })
+      invalidateApiKeyCaches(queryClient)
     } catch (error) {
       setRequestError(error)
     } finally {
@@ -168,10 +154,9 @@ export function ApiKeyCreateDialog() {
     form.reset(defaultValues)
     setCreatedKey(null)
     setRequestError(null)
-    setGenerateError(null)
   }
 
-  const busy = submitting || generating
+  const busy = submitting
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -187,7 +172,7 @@ export function ApiKeyCreateDialog() {
             <DialogHeader>
               <DialogTitle>Create API key</DialogTitle>
               <DialogDescription>
-                Create a downstream credential for Codex, Claude, or another API client.
+                Enter your own key or generate one, then save the credential.
               </DialogDescription>
             </DialogHeader>
 
@@ -199,7 +184,7 @@ export function ApiKeyCreateDialog() {
             >
               <FieldGroup>
                 <Field data-invalid={Boolean(form.formState.errors.label)}>
-                  <FieldLabel htmlFor="api-key-label">Label</FieldLabel>
+                  <FieldLabel htmlFor="api-key-label">Name</FieldLabel>
                   <Input
                     id="api-key-label"
                     placeholder="Local development"
@@ -214,43 +199,71 @@ export function ApiKeyCreateDialog() {
                   <FieldError errors={[form.formState.errors.label]} />
                 </Field>
 
+                <Field data-invalid={Boolean(form.formState.errors.groupLabel)}>
+                  <FieldLabel htmlFor="api-key-group">Provider group</FieldLabel>
+                  <Controller
+                    control={form.control}
+                    name="groupLabel"
+                    render={({ field }) => (
+                      <ApiKeyProviderGroupField
+                        id="api-key-group"
+                        value={field.value}
+                        onChange={field.onChange}
+                        catalog={providerGroups}
+                        disabled={busy}
+                        invalid={Boolean(form.formState.errors.groupLabel)}
+                      />
+                    )}
+                  />
+                  <FieldError errors={[form.formState.errors.groupLabel]} />
+                </Field>
+
                 <Field data-invalid={Boolean(form.formState.errors.key)}>
-                  <FieldLabel htmlFor="api-key-value">Key value</FieldLabel>
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                  <FieldLabel htmlFor="api-key-value">API key</FieldLabel>
+                  <div className="flex items-center gap-2">
                     <Input
                       id="api-key-value"
+                      className="font-mono"
                       autoComplete="off"
                       spellCheck={false}
-                      placeholder="At least 16 URL-safe characters"
                       disabled={busy}
                       aria-invalid={Boolean(form.formState.errors.key)}
-                      className="min-w-0 flex-1 font-mono"
                       {...form.register('key')}
                     />
                     <Button
                       type="button"
                       variant="outline"
-                      className="shrink-0"
                       disabled={busy}
-                      onClick={() => void generate()}
+                      onClick={() => {
+                        form.setValue('key', generateApiKey(), {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }}
                     >
-                      {generating ? (
-                        <Loader2Icon className="animate-spin" />
-                      ) : (
-                        <RefreshCwIcon />
-                      )}
-                      {generating ? 'Generating…' : 'Generate'}
+                      <RefreshCwIcon />
+                      Generate
                     </Button>
                   </div>
-                  <FieldDescription>
-                    Enter a URL-safe key or ask the server to generate one. Maximum 256 bytes.
-                  </FieldDescription>
                   <FieldError errors={[form.formState.errors.key]} />
-                  {generateError ? (
-                    <p role="alert" className="text-xs text-destructive">
-                      {apiErrorMessage(generateError, 'The server could not generate a key.')}
-                    </p>
-                  ) : null}
+                </Field>
+
+                <Field
+                  data-invalid={Boolean(form.formState.errors.quotaLimitUsd)}
+                >
+                  <FieldLabel htmlFor="api-key-quota-limit">
+                    Quota limit (USD)
+                  </FieldLabel>
+                  <Input
+                    id="api-key-quota-limit"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="Unlimited"
+                    disabled={busy}
+                    aria-invalid={Boolean(form.formState.errors.quotaLimitUsd)}
+                    {...form.register('quotaLimitUsd')}
+                  />
+                  <FieldError errors={[form.formState.errors.quotaLimitUsd]} />
                 </Field>
 
                 <Field data-invalid={Boolean(form.formState.errors.expiresAt)}>
@@ -268,27 +281,34 @@ export function ApiKeyCreateDialog() {
                       />
                     )}
                   />
-                  <FieldDescription>
-                    Leave empty for a key that never expires. Times use this browser&apos;s local timezone.
-                  </FieldDescription>
                   <FieldError errors={[form.formState.errors.expiresAt]} />
                 </Field>
+
               </FieldGroup>
             </form>
 
             <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+              <DialogClose
+                disabled={busy}
+                render={<Button variant="outline" disabled={busy} />}
+              >
+                Cancel
+              </DialogClose>
               <Button
                 type="submit"
                 form="api-key-create-form"
-                disabled={busy}
+                disabled={
+                  busy ||
+                  providerGroups.status !== 'ready' ||
+                  providerGroups.values.length === 0
+                }
               >
                 {submitting ? (
                   <Loader2Icon className="animate-spin" />
                 ) : (
                   <KeyRoundIcon />
                 )}
-                Create API key
+                Save API key
               </Button>
             </DialogFooter>
           </>
@@ -305,9 +325,10 @@ function CreatedApiKeyResult({ label, value }: { label: string; value: string })
         <div className="mb-1 flex size-10 items-center justify-center rounded-xl border bg-muted/45 text-muted-foreground">
           <KeyRoundIcon className="size-5" />
         </div>
-        <DialogTitle>{label} is ready</DialogTitle>
+        <DialogTitle>{label} is saved</DialogTitle>
         <DialogDescription>
-          Copy this key into the client that will call the Provider API. You can reveal it again from this page.
+          Copy this key for your client. You can view it again from the API key
+          list.
         </DialogDescription>
       </DialogHeader>
       <ApiKeySecret value={value} />
@@ -318,15 +339,26 @@ function CreatedApiKeyResult({ label, value }: { label: string; value: string })
   )
 }
 
+function generateApiKey(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
+}
+
 function CreateError({ error }: { error: unknown }) {
   return (
     <Alert variant="destructive">
       <CircleAlertIcon />
       <AlertTitle>Unable to create API key</AlertTitle>
       <AlertDescription>
-        {apiErrorMessage(error, 'The API key could not be created. Try again.')}
+        {apiErrorMessage(
+          error,
+          'The API key could not be created. Try again.',
+        )}
       </AlertDescription>
     </Alert>
   )
 }
-

@@ -1,29 +1,95 @@
 import { queryOptions } from '@tanstack/react-query'
 
-import { getUsageOverview } from '@/features/usage/usage-api'
-import type {
-  UsageAttributionBasis,
-  UsageWindowId,
-} from '@/features/usage/usage-types'
-import { currentUsageRange } from '@/features/usage/usage-window'
-
-// The only basis this slice reads. Both are correct answers to different
-// questions, and mixing them in one view would be wrong, so the choice is fixed
-// until there is a control that makes the switch explicit.
-const usageBasis: UsageAttributionBasis = 'user_final_attempt'
+import {
+  getUsageFilterOptions,
+  getUsageOverview,
+  getUsageRequestDetail,
+  getUsageRequests,
+} from '@/features/usage/usage-api'
+import type { UsageRange } from '@/features/usage/usage-types'
 
 // Usage changes far less often than provider quota and every read is a database
-// aggregate, so it is refreshed on demand rather than polled.
+// aggregate, so a short stale window is enough for the dashboard.
 const usageStaleTime = 60_000
 
-export const usageKeys = {
-  overview: (window: UsageWindowId) => ['usage', 'overview', window] as const,
+export type UsageFilterState = {
+  apiKeyId: string | null
+  model: string | null
+  groupLabel: string | null
 }
 
-export function usageOverviewQueryOptions(window: UsageWindowId) {
+export const usageKeys = {
+  filters: (range: UsageRange) =>
+    ['usage', 'filters', range.fromMs, range.toMs] as const,
+  overview: (range: UsageRange) =>
+    ['usage', 'overview', range.fromMs, range.toMs] as const,
+  requests: (
+    range: UsageRange,
+    filters: UsageFilterState,
+    cursor: string | null,
+  ) =>
+    [
+      'usage',
+      'requests',
+      range.fromMs,
+      range.toMs,
+      filters.apiKeyId ?? 'all',
+      filters.model ?? 'all',
+      filters.groupLabel ?? 'all',
+      cursor ?? 'start',
+    ] as const,
+  requestDetail: (requestId: string, range: UsageRange) =>
+    [
+      'usage',
+      'request-detail',
+      requestId,
+      range.fromMs,
+      range.toMs,
+    ] as const,
+}
+
+export function usageRequestDetailQueryOptions(
+  requestId: string,
+  range: UsageRange,
+) {
   return queryOptions({
-    queryKey: usageKeys.overview(window),
-    queryFn: () => getUsageOverview(currentUsageRange(window), usageBasis),
+    queryKey: usageKeys.requestDetail(requestId, range),
+    queryFn: () => getUsageRequestDetail(requestId, range),
+    staleTime: usageStaleTime,
+  })
+}
+
+export function usageFilterOptionsQueryOptions(range: UsageRange) {
+  return queryOptions({
+    queryKey: usageKeys.filters(range),
+    queryFn: () => getUsageFilterOptions(range),
+    staleTime: usageStaleTime,
+    retry: 1,
+  })
+}
+
+export function usageOverviewQueryOptions(range: UsageRange) {
+  return queryOptions({
+    queryKey: usageKeys.overview(range),
+    queryFn: () => getUsageOverview(range),
+    staleTime: usageStaleTime,
+  })
+}
+
+export function usageRequestsQueryOptions(
+  range: UsageRange,
+  filters: UsageFilterState,
+  cursor: string | null = null,
+) {
+  return queryOptions({
+    queryKey: usageKeys.requests(range, filters, cursor),
+    queryFn: () =>
+      getUsageRequests(range, {
+        apiKeyId: filters.apiKeyId,
+        model: filters.model,
+        groupLabel: filters.groupLabel,
+        cursor,
+      }),
     staleTime: usageStaleTime,
   })
 }

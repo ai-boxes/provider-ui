@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CircleAlertIcon, RefreshCwIcon, UsersIcon } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -26,6 +27,7 @@ import {
   UserActions,
   UserEnabledControl,
 } from '@/features/users/user-actions'
+import { RegistrationCodeCreateDialog } from '@/features/users/registration-code-create'
 import { UserCreateDialog } from '@/features/users/user-create'
 import {
   formatUserDate,
@@ -38,39 +40,34 @@ export function UserList() {
   const authState = useAuthState()
   const users = useQuery(usersQueryOptions)
   const currentUserId =
-    authState.status === 'authenticated' ? authState.session.user.id : ''
+    authState.status === 'authenticated' ? authState.user.id : ''
+  const content = users.isPending ? (
+    <UserListLoading />
+  ) : users.isError ? (
+    <UserListError
+      busy={users.isFetching}
+      onRetry={() => void users.refetch()}
+    />
+  ) : users.data.length === 0 ? (
+    <UserListEmpty />
+  ) : (
+    <UserCollection users={users.data} currentUserId={currentUserId} />
+  )
 
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="grid max-w-2xl gap-1">
-          <p className="text-sm leading-6 text-muted-foreground">
-            Manage the accounts that can sign in to this control plane.
-            Provider access continues to follow ownership and visibility rules.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            New users are created as standard users. Super admin remains a
-            first-setup role.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 self-start">
-          {users.data ? (
-            <Badge variant="outline" className="bg-background">
-              {formatUserCount(users.data.length)}
-            </Badge>
-          ) : null}
-          <UserCreateDialog />
-        </div>
-      </div>
+      <PageHeader
+        title="Users"
+        description="Manage who can sign in. Provider configuration remains restricted to super administrators."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <RegistrationCodeCreateDialog />
+            <UserCreateDialog />
+          </div>
+        }
+      />
 
-      {users.isPending ? <UserListLoading /> : null}
-      {users.isError ? (
-        <UserListError onRetry={() => void users.refetch()} />
-      ) : null}
-      {users.data?.length === 0 ? <UserListEmpty /> : null}
-      {users.data && users.data.length > 0 ? (
-        <UserCollection users={users.data} currentUserId={currentUserId} />
-      ) : null}
+      {content}
     </section>
   )
 }
@@ -87,7 +84,7 @@ function UserCollection({
       <Card className="hidden gap-0 py-0 lg:flex">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/35 hover:bg-muted/35">
+            <TableRow className="bg-muted/55 hover:bg-muted/55">
               <TableHead className="pl-4">User</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
@@ -145,7 +142,7 @@ function UserTableRow({
       </TableCell>
       <TableCell className="pr-4">
         <div className="flex justify-end">
-          <UserActions user={user} />
+          <UserActions user={user} currentUserId={currentUserId} />
         </div>
       </TableCell>
     </TableRow>
@@ -187,7 +184,7 @@ function UserCard({
       </div>
 
       <div className="border-t pt-4">
-        <UserActions user={user} />
+        <UserActions user={user} currentUserId={currentUserId} />
       </div>
     </Card>
   )
@@ -278,7 +275,13 @@ function UserListLoading() {
   )
 }
 
-function UserListError({ onRetry }: { onRetry: () => void }) {
+function UserListError({
+  busy,
+  onRetry,
+}: {
+  busy: boolean
+  onRetry: () => void
+}) {
   return (
     <Alert className="max-w-2xl">
       <CircleAlertIcon />
@@ -290,10 +293,11 @@ function UserListError({ onRetry }: { onRetry: () => void }) {
         variant="outline"
         size="sm"
         className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
+        disabled={busy}
         onClick={onRetry}
       >
-        <RefreshCwIcon />
-        Retry
+        <RefreshCwIcon className={busy ? 'animate-spin' : undefined} />
+        {busy ? 'Retrying…' : 'Retry'}
       </Button>
     </Alert>
   )
@@ -315,8 +319,4 @@ function UserListEmpty() {
       </Empty>
     </Card>
   )
-}
-
-function formatUserCount(count: number): string {
-  return count === 1 ? '1 user' : `${count} users`
 }

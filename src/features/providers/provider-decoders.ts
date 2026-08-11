@@ -13,6 +13,7 @@ import {
   requireBoolean,
   requireEnum,
   requireNonEmptyString,
+  requireNonNegativeInteger,
   requirePositiveInteger,
   requireRecord,
   requireTimestamp,
@@ -21,12 +22,15 @@ import type {
   CreatedProviderAccount,
   ProviderAccount,
   ProviderAccountWithQuota,
+  ProviderHealthAccount,
+  ProviderHealthSnapshot,
   ProviderAuthState,
   ProviderCredentialKind,
   ProviderKind,
   ProviderModel,
+  ProviderModelPricing,
+  ProviderModelPricingTier,
   ProviderModelCatalogSnapshot,
-  ProviderModelCatalogSource,
   ProviderOAuthSession,
   ProviderOAuthStatus,
   ProviderQuota,
@@ -49,7 +53,6 @@ const providerVisibilities = [
 const providerCredentialKinds = [
   'oauth',
   'api_key',
-  'none',
 ] as const satisfies readonly ProviderCredentialKind[]
 
 const providerAuthStates = [
@@ -57,15 +60,9 @@ const providerAuthStates = [
   'reauth_required',
 ] as const satisfies readonly ProviderAuthState[]
 
-const providerModelCatalogSources = [
-  'remote',
-  'cached',
-  'built_in',
-  'empty',
-] as const satisfies readonly ProviderModelCatalogSource[]
-
 const providerOAuthStatuses = [
   'pending',
+  'provisioning',
   'completed',
   'failed',
   'cancelled',
@@ -137,6 +134,33 @@ export function decodeProviderAccount(value: unknown): ProviderAccount {
   return decodeProviderAccountValue(value, 'provider account')
 }
 
+export function decodeProviderHealth(value: unknown): ProviderHealthSnapshot {
+  const record = requireRecord(value, 'provider health')
+  const accounts = requireArray(record.accounts, 'provider health accounts')
+
+  return {
+    fromMs: requireTimestamp(record.from_ms, 'provider health start time'),
+    toMs: requireTimestamp(record.to_ms, 'provider health end time'),
+    accounts: accounts.map((account, index) =>
+      decodeProviderHealthAccount(account, `provider health account ${index + 1}`),
+    ),
+  }
+}
+
+function decodeProviderHealthAccount(
+  value: unknown,
+  label: string,
+): ProviderHealthAccount {
+  const record = requireRecord(value, label)
+
+  return {
+    accountId: requireNonEmptyString(record.account_id, `${label} ID`),
+    requests: requireNonNegativeInteger(record.requests, `${label} requests`),
+    successes: requireNonNegativeInteger(record.successes, `${label} successes`),
+    failures: requireNonNegativeInteger(record.failures, `${label} failures`),
+  }
+}
+
 export function decodeProviderModels(value: unknown): ProviderModel[] {
   if (!Array.isArray(value)) {
     throw new TypeError('provider models must be an array')
@@ -185,6 +209,7 @@ export function decodeProviderOAuthSession(
       'OAuth provider account ID',
     ),
     label: requireNonEmptyString(record.label, 'OAuth provider label'),
+    groupLabel: requireNonEmptyString(record.group_label, 'OAuth provider group label'),
     status: requireEnum(
       record.status,
       providerOAuthStatuses,
@@ -241,6 +266,7 @@ function decodeProviderAccountRecord(
     ),
     provider,
     label: requireNonEmptyString(record.label, 'provider label'),
+    groupLabel: requireNonEmptyString(record.group_label, 'provider group label'),
     baseUrl: decodeBaseUrl(record.config, provider),
     credentialKind: requireEnum(
       record.credential_kind,
@@ -277,9 +303,49 @@ function decodeProviderModel(value: unknown, label: string): ProviderModel {
     available: requireBoolean(record.available, 'model availability'),
     routable: requireBoolean(record.routable, 'model routable state'),
     metadata: optionalRecord(record.metadata, 'model metadata'),
+    pricing: decodeProviderModelPricing(record.pricing),
     lastSeenAt: optionalTimestamp(record.last_seen_at, 'model last seen time'),
     createdAt: requireTimestamp(record.created_at, 'model creation time'),
     updatedAt: requireTimestamp(record.updated_at, 'model update time'),
+  }
+}
+
+function decodeProviderModelPricing(value: unknown): ProviderModelPricing | null {
+  if (value === null) {
+    return null
+  }
+  const record = requireRecord(value, 'model pricing')
+  return {
+    input: optionalString(record.input, 'model input price'),
+    output: optionalString(record.output, 'model output price'),
+    cacheRead: optionalString(record.cache_read, 'model cache read price'),
+    cacheWrite: optionalString(record.cache_write, 'model cache write price'),
+    reasoning: optionalString(record.reasoning, 'model reasoning price'),
+    inputAudio: optionalString(record.input_audio, 'model input audio price'),
+    outputAudio: optionalString(record.output_audio, 'model output audio price'),
+    tiers: requireArray(record.tiers, 'model pricing tiers').map((tier, index) =>
+      decodeProviderModelPricingTier(tier, `model pricing tier ${index + 1}`),
+    ),
+  }
+}
+
+function decodeProviderModelPricingTier(
+  value: unknown,
+  label: string,
+): ProviderModelPricingTier {
+  const record = requireRecord(value, label)
+  return {
+    thresholdTokens: requireNonNegativeInteger(
+      record.threshold_tokens,
+      `${label} threshold`,
+    ),
+    input: optionalString(record.input, `${label} input price`),
+    output: optionalString(record.output, `${label} output price`),
+    cacheRead: optionalString(record.cache_read, `${label} cache read price`),
+    cacheWrite: optionalString(record.cache_write, `${label} cache write price`),
+    reasoning: optionalString(record.reasoning, `${label} reasoning price`),
+    inputAudio: optionalString(record.input_audio, `${label} input audio price`),
+    outputAudio: optionalString(record.output_audio, `${label} output audio price`),
   }
 }
 
@@ -402,13 +468,7 @@ export function decodeProviderModelCatalogSnapshot(
   const record = requireRecord(value, 'provider model catalog')
 
   return {
-    source: requireEnum(
-      record.source,
-      providerModelCatalogSources,
-      'provider model catalog source',
-    ),
     models: decodeProviderModels(record.models),
-    warning: optionalString(record.warning, 'provider model catalog warning'),
   }
 }
 

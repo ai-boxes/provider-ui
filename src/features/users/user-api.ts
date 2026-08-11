@@ -1,9 +1,11 @@
 import { requestAuthenticatedData } from '@/features/auth/authenticated-request'
 import {
+  decodeCreatedRegistrationCode,
   decodeManagedUser,
   decodeManagedUsers,
 } from '@/features/users/user-decoders'
 import type {
+  CreatedRegistrationCode,
   CreateUserInput,
   ManagedUser,
   ResetUserPasswordInput,
@@ -16,6 +18,14 @@ const jsonHeaders = {
 
 export function getUsers(): Promise<ManagedUser[]> {
   return requestAuthenticatedData('/api/v1/users', decodeManagedUsers)
+}
+
+export function createRegistrationCode(): Promise<CreatedRegistrationCode> {
+  return requestAuthenticatedData(
+    '/api/v1/registration-codes',
+    decodeCreatedRegistrationCode,
+    { method: 'POST' },
+  )
 }
 
 export function createUser(input: CreateUserInput): Promise<ManagedUser> {

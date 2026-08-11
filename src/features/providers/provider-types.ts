@@ -6,18 +6,13 @@ export type ProviderKind =
 
 export type ProviderVisibility = 'private' | 'shared'
 
-export type ProviderCredentialKind = 'oauth' | 'api_key' | 'none'
+export type ProviderCredentialKind = 'oauth' | 'api_key'
 
 export type ProviderAuthState = 'active' | 'reauth_required'
 
-export type ProviderModelCatalogSource =
-  | 'remote'
-  | 'cached'
-  | 'built_in'
-  | 'empty'
-
 export type ProviderOAuthStatus =
   | 'pending'
+  | 'provisioning'
   | 'completed'
   | 'failed'
   | 'cancelled'
@@ -28,6 +23,7 @@ export type ProviderAccount = {
   visibility: ProviderVisibility
   provider: ProviderKind
   label: string
+  groupLabel: string
   baseUrl: string | null
   credentialKind: ProviderCredentialKind
   enabled: boolean
@@ -117,6 +113,19 @@ export type ProviderAccountWithQuota = ProviderAccount & {
   quota: ProviderQuota
 }
 
+export type ProviderHealthAccount = {
+  accountId: string
+  requests: number
+  successes: number
+  failures: number
+}
+
+export type ProviderHealthSnapshot = {
+  fromMs: number
+  toMs: number
+  accounts: ProviderHealthAccount[]
+}
+
 export type ProviderModel = {
   accountId: string
   upstreamModel: string
@@ -126,15 +135,36 @@ export type ProviderModel = {
   available: boolean
   routable: boolean
   metadata: Record<string, unknown> | null
+  pricing: ProviderModelPricing | null
   lastSeenAt: number | null
   createdAt: number
   updatedAt: number
 }
 
+export type ProviderModelPricing = {
+  input: string | null
+  output: string | null
+  cacheRead: string | null
+  cacheWrite: string | null
+  reasoning: string | null
+  inputAudio: string | null
+  outputAudio: string | null
+  tiers: ProviderModelPricingTier[]
+}
+
+export type ProviderModelPricingTier = {
+  thresholdTokens: number
+  input: string | null
+  output: string | null
+  cacheRead: string | null
+  cacheWrite: string | null
+  reasoning: string | null
+  inputAudio: string | null
+  outputAudio: string | null
+}
+
 export type ProviderModelCatalogSnapshot = {
-  source: ProviderModelCatalogSource
   models: ProviderModel[]
-  warning: string | null
 }
 
 export type CreatedProviderAccount = {
@@ -153,6 +183,7 @@ export type ProviderOAuthSession = {
   provider: OAuthProviderKind
   accountId: string
   label: string
+  groupLabel: string
   status: ProviderOAuthStatus
   challenge: {
     verificationUri: string
@@ -166,13 +197,14 @@ export type ProviderOAuthSession = {
 
 export type CreateProviderBaseInput = {
   label: string
+  groupLabel: string
   visibility: ProviderVisibility
 }
 
 export type CreateCompatibleProviderInput = CreateProviderBaseInput & {
   provider: CompatibleProviderKind
   baseUrl: string
-  apiKey?: string
+  apiKey: string
 }
 
 export type ImportOAuthProviderInput = CreateProviderBaseInput & {
@@ -185,10 +217,12 @@ export type StartProviderOAuthInput = CreateProviderBaseInput & {
 }
 
 export type UpdateProviderAccountInput = {
+  groupLabel: string
   accountId: string
   label: string
   visibility: ProviderVisibility
   baseUrl?: string
+  apiKey?: string
 }
 
 export type SetProviderEnabledInput = {
@@ -201,4 +235,6 @@ export type UpdateProviderModelInput = {
   upstreamModel: string
   alias?: string
   enabled: boolean
+  pricingChanged: boolean
+  pricing: ProviderModelPricing | null
 }

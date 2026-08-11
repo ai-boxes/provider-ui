@@ -1,15 +1,11 @@
 import type { ApiKeySummary } from '@/features/api-keys/api-key-types'
+import { formatUnixSeconds } from '@/lib/datetime'
 
-const dateFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-})
-
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-export type ApiKeyStatus = 'active' | 'disabled' | 'expired'
+export type ApiKeyStatus =
+  | 'active'
+  | 'disabled'
+  | 'expired'
+  | 'exhausted'
 
 export function getApiKeyStatus(
   key: ApiKeySummary,
@@ -19,15 +15,49 @@ export function getApiKeyStatus(
     return 'expired'
   }
 
-  return key.enabled ? 'active' : 'disabled'
+  if (!key.enabled) {
+    return 'disabled'
+  }
+
+  if (
+    key.quotaLimitUsd !== null &&
+    compareUnsignedDecimals(key.spentUsd, key.quotaLimitUsd) >= 0
+  ) {
+    return 'exhausted'
+  }
+
+  return 'active'
+}
+
+function compareUnsignedDecimals(left: string, right: string): number {
+  const [leftWhole, leftFraction = ''] = normalizeDecimal(left)
+  const [rightWhole, rightFraction = ''] = normalizeDecimal(right)
+
+  if (leftWhole.length !== rightWhole.length) {
+    return leftWhole.length > rightWhole.length ? 1 : -1
+  }
+
+  if (leftWhole !== rightWhole) {
+    return leftWhole > rightWhole ? 1 : -1
+  }
+
+  const fractionLength = Math.max(leftFraction.length, rightFraction.length)
+  const paddedLeft = leftFraction.padEnd(fractionLength, '0')
+  const paddedRight = rightFraction.padEnd(fractionLength, '0')
+  return paddedLeft === paddedRight ? 0 : paddedLeft > paddedRight ? 1 : -1
+}
+
+function normalizeDecimal(value: string): [string, string?] {
+  const [whole = '0', fraction = ''] = value.split('.', 2)
+  return [whole.replace(/^0+(?=\d)/, ''), fraction.replace(/0+$/, '')]
 }
 
 export function formatApiKeyDate(timestamp: number): string {
-  return dateFormatter.format(new Date(timestamp * 1000))
+  return formatUnixSeconds(timestamp)
 }
 
 export function formatApiKeyDateTime(timestamp: number): string {
-  return dateTimeFormatter.format(new Date(timestamp * 1000))
+  return formatUnixSeconds(timestamp)
 }
 
 export function toDateTimeLocalValue(timestamp: number | null): string {

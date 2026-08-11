@@ -12,6 +12,10 @@ import {
 } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import {
+  authReturnState,
+  readAuthReturnTo,
+} from '@/features/auth/auth-navigation'
+import {
   clearAuthSession,
   restoreAuthSession,
 } from '@/features/auth/auth-session'
@@ -26,11 +30,11 @@ export function AuthRouteBoundary() {
     enabled: authState.status === 'anonymous',
   })
 
-  if (authState.status === 'loading' || authState.status === 'restoring') {
+  if (authState.status === 'loading') {
     return (
       <AuthStatusCard
         title="Restoring session"
-        description="Checking your saved session."
+        description="Checking your browser session."
         busy
       />
     )
@@ -61,7 +65,7 @@ export function AuthRouteBoundary() {
 
   if (authState.status === 'authenticated') {
     return isAuthenticationRoute(location.pathname) ? (
-      <Navigate to="/" replace />
+      <Navigate to={readAuthReturnTo(location.state)} replace />
     ) : (
       <Outlet />
     )
@@ -83,8 +87,13 @@ export function AuthRouteBoundary() {
         title="Unable to check setup"
         description="The server could not be reached. Check your connection and try again."
         actions={
-          <Button className="w-full" onClick={() => void setupStatus.refetch()}>
-            Retry
+          <Button
+            className="w-full"
+            disabled={setupStatus.isFetching}
+            onClick={() => void setupStatus.refetch()}
+          >
+            {setupStatus.isFetching ? <Spinner /> : null}
+            {setupStatus.isFetching ? 'Retrying…' : 'Retry'}
           </Button>
         }
       />
@@ -102,7 +111,11 @@ export function AuthRouteBoundary() {
   return location.pathname === '/login' ? (
     <Outlet />
   ) : (
-    <Navigate to="/login" replace />
+    <Navigate
+      to="/login"
+      replace
+      state={authReturnState(location)}
+    />
   )
 }
 

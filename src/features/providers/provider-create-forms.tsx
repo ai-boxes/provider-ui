@@ -48,6 +48,14 @@ import { ApiError } from '@/lib/api/error'
 
 const providerBaseSchema = z.object({
   label: z.string().trim().min(1, 'Label is required.'),
+  groupLabel: z
+    .string()
+    .trim()
+    .min(1, 'Provider group is required.')
+    .refine(
+      (value) => [...value].length <= 64,
+      'Provider group must be 64 characters or fewer.',
+    ),
   visibility: z.enum(['private', 'shared']),
 })
 
@@ -57,7 +65,7 @@ const compatibleProviderSchema = providerBaseSchema.extend({
     .trim()
     .min(1, 'Base URL is required.')
     .refine(isHttpUrl, 'Enter an absolute HTTP or HTTPS URL with a host.'),
-  apiKey: z.string().transform((value) => value.trim()),
+  apiKey: z.string().trim().min(1, 'API Key is required.'),
 })
 
 const credentialJsonImportSchema = providerBaseSchema.extend({
@@ -96,6 +104,7 @@ type CredentialJsonImportValues = z.infer<
 
 const defaultBaseValues: ProviderBaseValues = {
   label: '',
+  groupLabel: '',
   visibility: 'private',
 }
 
@@ -145,8 +154,10 @@ export function ProviderOAuthStartForm({
           <ProviderBaseFields
             disabled={startOAuth.isPending}
             labelRegistration={form.register('label')}
+            groupLabelRegistration={form.register('groupLabel')}
             visibilityRegistration={form.register('visibility')}
             labelError={form.formState.errors.label}
+            groupLabelError={form.formState.errors.groupLabel}
             visibilityError={form.formState.errors.visibility}
           />
         </FieldGroup>
@@ -219,6 +230,7 @@ export function ProviderJsonImportForm({
           importProvider.mutate({
             provider,
             label: values.label,
+            groupLabel: values.groupLabel,
             visibility: values.visibility,
             credentialJson: JSON.parse(values.credentialJson) as Record<
               string,
@@ -231,8 +243,10 @@ export function ProviderJsonImportForm({
           <ProviderBaseFields
             disabled={importProvider.isPending}
             labelRegistration={form.register('label')}
+            groupLabelRegistration={form.register('groupLabel')}
             visibilityRegistration={form.register('visibility')}
             labelError={form.formState.errors.label}
+            groupLabelError={form.formState.errors.groupLabel}
             visibilityError={form.formState.errors.visibility}
           />
 
@@ -340,9 +354,10 @@ export function CompatibleProviderForm({
           createProvider.mutate({
             provider,
             label: values.label,
+            groupLabel: values.groupLabel,
             visibility: values.visibility,
             baseUrl: values.baseUrl,
-            apiKey: values.apiKey || undefined,
+            apiKey: values.apiKey,
           })
         })}
       >
@@ -350,8 +365,10 @@ export function CompatibleProviderForm({
           <ProviderBaseFields
             disabled={createProvider.isPending}
             labelRegistration={form.register('label')}
+            groupLabelRegistration={form.register('groupLabel')}
             visibilityRegistration={form.register('visibility')}
             labelError={form.formState.errors.label}
+            groupLabelError={form.formState.errors.groupLabel}
             visibilityError={form.formState.errors.visibility}
           />
 
@@ -378,9 +395,7 @@ export function CompatibleProviderForm({
           </Field>
 
           <Field data-invalid={Boolean(form.formState.errors.apiKey)}>
-            <FieldLabel htmlFor="provider-api-key">
-              API Key <span className="text-muted-foreground">(optional)</span>
-            </FieldLabel>
+            <FieldLabel htmlFor="provider-api-key">API Key</FieldLabel>
             <Input
               id="provider-api-key"
               type="password"
@@ -389,9 +404,6 @@ export function CompatibleProviderForm({
               aria-invalid={Boolean(form.formState.errors.apiKey)}
               {...form.register('apiKey')}
             />
-            <FieldDescription>
-              Leave empty when the upstream does not require authentication.
-            </FieldDescription>
             <FieldError errors={[form.formState.errors.apiKey]} />
           </Field>
         </FieldGroup>
@@ -403,14 +415,18 @@ export function CompatibleProviderForm({
 function ProviderBaseFields({
   disabled,
   labelRegistration,
+  groupLabelRegistration,
   visibilityRegistration,
   labelError,
+  groupLabelError,
   visibilityError,
 }: {
   disabled: boolean
   labelRegistration: UseFormRegisterReturn<'label'>
+  groupLabelRegistration: UseFormRegisterReturn<'groupLabel'>
   visibilityRegistration: UseFormRegisterReturn<'visibility'>
   labelError?: ReactHookFormFieldError
+  groupLabelError?: ReactHookFormFieldError
   visibilityError?: ReactHookFormFieldError
 }) {
   return (
@@ -429,6 +445,22 @@ function ProviderBaseFields({
           A recognizable name for this provider account.
         </FieldDescription>
         <FieldError errors={[labelError]} />
+      </Field>
+
+      <Field data-invalid={Boolean(groupLabelError)}>
+        <FieldLabel htmlFor="provider-group-label">Provider group</FieldLabel>
+        <Input
+          id="provider-group-label"
+          autoComplete="off"
+          placeholder="shared-codex"
+          disabled={disabled}
+          aria-invalid={Boolean(groupLabelError)}
+          {...groupLabelRegistration}
+        />
+        <FieldDescription>
+          API keys select this label to route through matching provider accounts.
+        </FieldDescription>
+        <FieldError errors={[groupLabelError]} />
       </Field>
 
       <Field data-invalid={Boolean(visibilityError)}>

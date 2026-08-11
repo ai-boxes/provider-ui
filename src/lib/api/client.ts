@@ -6,6 +6,9 @@ export type HttpFetcher = (
   init?: RequestInit,
 ) => Promise<Response>
 
+export const sameOriginFetch: HttpFetcher = (input, init) =>
+  fetch(input, { ...init, credentials: 'same-origin' })
+
 export async function requestData<T>(
   input: RequestInfo | URL,
   decode: Decoder<T>,

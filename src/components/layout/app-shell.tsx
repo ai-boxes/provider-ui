@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   BoxesIcon,
   ChartNoAxesColumnIcon,
-  ChevronsUpDownIcon,
   KeyRoundIcon,
   LogOutIcon,
   UsersIcon,
@@ -10,9 +9,11 @@ import {
 import { NavLink, Outlet, useLocation } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -22,7 +23,6 @@ import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -45,30 +45,30 @@ const primaryNavigation = [
     label: 'Providers',
     href: '/providers',
     icon: BoxesIcon,
+    superAdminOnly: true,
   },
   {
     label: 'API Keys',
     href: '/api-keys',
     icon: KeyRoundIcon,
+    superAdminOnly: false,
   },
   {
     label: 'Usage',
     href: '/usage',
     icon: ChartNoAxesColumnIcon,
-  },
-] as const
-
-const adminNavigation = [
-  {
-    label: 'Users',
-    href: '/users',
-    icon: UsersIcon,
+    superAdminOnly: false,
   },
 ] as const
 
 export function AppShell() {
   const authState = useAuthState()
   const location = useLocation()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0 })
+  }, [location.pathname, location.search])
 
   if (authState.status !== 'authenticated') {
     return null
@@ -76,17 +76,23 @@ export function AppShell() {
 
   return (
     <SidebarProvider>
-      <AppSidebar user={authState.session.user} />
-      <SidebarInset className="min-w-0 overflow-hidden">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur-sm sm:px-6">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-4" />
-          <h1 className="text-sm font-semibold tracking-tight">
-            {getPageTitle(location.pathname)}
-          </h1>
+      <AppSidebar user={authState.user} />
+      <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-background">
+        <header className="z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/85 px-4 backdrop-blur-xl sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="h-4" />
+            <span className="truncate text-sm font-medium text-muted-foreground">
+              {getPageTitle(location.pathname)}
+            </span>
+          </div>
+          <UserMenu user={authState.user} />
         </header>
-        <div className="flex flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col">
+        <div
+          ref={scrollContainerRef}
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10"
+        >
+          <div className="mx-auto flex w-full max-w-7xl flex-col pb-10">
             <Outlet />
           </div>
         </div>
@@ -105,21 +111,26 @@ function AppSidebar({ user }: { user: AuthUser }) {
   }
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader className="pt-3">
+    <Sidebar variant="inset" collapsible="icon" className="border-r border-sidebar-border/70">
+      <SidebarHeader className="pt-4">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               tooltip="Provider"
-              render={<NavLink to="/providers" onClick={closeMobileSidebar} />}
+              render={
+                <NavLink
+                  to={user.role === 'super_admin' ? '/providers' : '/api-keys'}
+                  onClick={closeMobileSidebar}
+                />
+              }
               className="hover:bg-transparent active:bg-transparent"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-xs">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm shadow-sidebar-primary/20">
                 <BoxesIcon className="size-4" />
               </span>
               <span className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-semibold">Provider</span>
+                <span className="truncate font-semibold tracking-tight">Provider</span>
                 <span className="truncate text-xs text-sidebar-foreground/60">
                   Control plane
                 </span>
@@ -129,33 +140,20 @@ function AppSidebar({ user }: { user: AuthUser }) {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
+      <SidebarContent className="px-1">
+        <SidebarGroup className="pt-3">
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <NavigationMenu
-              items={primaryNavigation}
+              items={primaryNavigation.filter(
+                (item) => !item.superAdminOnly || user.role === 'super_admin',
+              )}
               onNavigate={closeMobileSidebar}
             />
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {user.role === 'super_admin' ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>Administration</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <NavigationMenu
-                items={adminNavigation}
-                onNavigate={closeMobileSidebar}
-              />
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
       </SidebarContent>
 
-      <SidebarFooter className="pb-3">
-        <UserMenu user={user} />
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
@@ -165,6 +163,7 @@ type NavigationItem = {
   label: string
   href: string
   icon: typeof BoxesIcon
+  superAdminOnly: boolean
 }
 
 function NavigationMenu({
@@ -177,7 +176,7 @@ function NavigationMenu({
   const location = useLocation()
 
   return (
-    <SidebarMenu className="gap-1">
+    <SidebarMenu className="gap-1.5">
       {items.map((item) => {
         const isActive =
           location.pathname === item.href ||
@@ -189,6 +188,7 @@ function NavigationMenu({
               tooltip={item.label}
               isActive={isActive}
               render={<NavLink to={item.href} onClick={onNavigate} />}
+              className="h-9 rounded-lg px-2.5 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground data-active:shadow-xs"
             >
               <item.icon />
               <span>{item.label}</span>
@@ -201,7 +201,6 @@ function NavigationMenu({
 }
 
 function UserMenu({ user }: { user: AuthUser }) {
-  const { isMobile } = useSidebar()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   async function handleLogout() {
@@ -219,65 +218,66 @@ function UserMenu({ user }: { user: AuthUser }) {
   }
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton
-                size="lg"
-                className="data-open:bg-sidebar-accent data-popup-open:bg-sidebar-accent"
-              />
-            }
-          >
-            <Avatar className="rounded-lg" size="default">
-              <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                {getUserInitial(user.username)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="grid flex-1 text-left leading-tight">
-              <span className="truncate font-medium">{user.username}</span>
-              <span className="truncate text-xs text-sidebar-foreground/60">
-                {formatRole(user.role)}
-              </span>
-            </span>
-            <ChevronsUpDownIcon className="ml-auto size-4 text-sidebar-foreground/60" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side={isMobile ? 'bottom' : 'top'}
-            align="end"
-            sideOffset={8}
-            className="w-56 min-w-56"
-          >
-            <DropdownMenuLabel className="p-2 font-normal">
-              <div className="flex items-center gap-2">
-                <Avatar className="rounded-lg" size="default">
-                  <AvatarFallback className="rounded-lg">
-                    {getUserInitial(user.username)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid min-w-0 flex-1 leading-tight">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {user.username}
-                  </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {formatRole(user.role)}
-                  </span>
-                </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`Open account menu for ${user.username}`}
+        className={buttonVariants({
+          variant: 'ghost',
+          size: 'icon',
+          className:
+            'rounded-full data-open:bg-muted data-popup-open:bg-muted',
+        })}
+      >
+        <Avatar size="default">
+          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+            {getUserInitial(user.username)}
+          </AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="bottom"
+        align="end"
+        sideOffset={8}
+        className="w-56 min-w-56"
+      >
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="p-2 font-normal">
+            <div className="flex items-center gap-2">
+              <Avatar className="rounded-lg" size="default">
+                <AvatarFallback className="rounded-lg">
+                  {getUserInitial(user.username)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid min-w-0 flex-1 leading-tight">
+                <span className="truncate text-sm font-medium text-foreground">
+                  {user.username}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {formatRole(user.role)}
+                </span>
               </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={isLoggingOut}
-              onClick={() => void handleLogout()}
-            >
-              <LogOutIcon />
-              {isLoggingOut ? 'Logging out…' : 'Log out'}
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        {user.role === 'super_admin' ? (
+          <>
+            <DropdownMenuItem render={<NavLink to="/users" />}>
+              <UsersIcon />
+              Users
             </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
+        <DropdownMenuItem
+          disabled={isLoggingOut}
+          onClick={() => void handleLogout()}
+        >
+          <LogOutIcon />
+          {isLoggingOut ? 'Logging out…' : 'Log out'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -290,7 +290,11 @@ function getPageTitle(pathname: string): string {
     return 'Provider details'
   }
 
-  const navigation = [...primaryNavigation, ...adminNavigation]
+  if (pathname === '/users') {
+    return 'Users'
+  }
+
+  const navigation = primaryNavigation
   return (
     navigation.find(
       (item) =>

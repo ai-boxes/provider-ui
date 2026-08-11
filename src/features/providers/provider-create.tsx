@@ -166,7 +166,7 @@ export function ProviderCreate() {
   return (
     <CreateStep
       title={`Connect ${formatProviderKind(provider)}`}
-      description="Configure the upstream endpoint and optional authentication used by this provider account."
+      description="Configure the upstream endpoint and API key used by this provider account."
       backTo="/providers/new"
       backLabel="Change provider type"
       narrow
@@ -200,6 +200,7 @@ function CreateStep({
     >
       <div className="grid gap-4">
         <Button
+          nativeButton={false}
           variant="ghost"
           size="sm"
           className="-ml-2 w-fit text-muted-foreground"
@@ -209,7 +210,7 @@ function CreateStep({
           {backLabel}
         </Button>
         <div className="grid gap-1.5">
-          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+          <h1 className="text-2xl font-semibold tracking-[-0.025em]">{title}</h1>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
             {description}
           </p>
@@ -249,7 +250,7 @@ function SelectionCard({
         ) : null}
       </div>
       <div className="grid gap-1.5">
-        <h3 className="font-medium">{title}</h3>
+        <h2 className="font-medium">{title}</h2>
         <p className="text-sm leading-5 text-muted-foreground">
           {description}
         </p>

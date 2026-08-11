@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router'
 
+import { canAccessSuperAdminRoutes } from '@/features/auth/auth-route-policy'
 import { useAuthState } from '@/features/auth/use-auth-state'
 
 export function SuperAdminRouteBoundary() {
@@ -9,9 +10,9 @@ export function SuperAdminRouteBoundary() {
     return null
   }
 
-  return authState.session.user.role === 'super_admin' ? (
+  return canAccessSuperAdminRoutes(authState.user.role) ? (
     <Outlet />
   ) : (
-    <Navigate to="/providers" replace />
+    <Navigate to="/api-keys" replace />
   )
 }

@@ -1,43 +1,74 @@
-import {
-  decodeAuthSession,
-  decodeSetupStatus,
-} from '@/features/auth/auth-decoders'
+import { decodeSetupStatus, decodeAuthUser } from '@/features/auth/auth-decoders'
 import type {
-  AuthSession,
+  AuthUser,
+  RegistrationCredentials,
   UserCredentials,
 } from '@/features/auth/auth-types'
-import { requestData } from '@/lib/api/client'
+import {
+  requestData,
+  requestEmpty,
+  sameOriginFetch,
+} from '@/lib/api/client'
 
-const jsonHeaders = {
-  'Content-Type': 'application/json',
-}
+const jsonHeaders = { 'Content-Type': 'application/json' }
 
 export function getSetupStatus(): Promise<{ required: boolean }> {
-  return requestData('/api/v1/auth/setup', decodeSetupStatus)
+  return requestData(
+    '/api/v1/auth/setup',
+    decodeSetupStatus,
+    undefined,
+    sameOriginFetch,
+  )
 }
 
-export function setupInitialUser(
+export async function setupInitialUser(
   credentials: UserCredentials,
-): Promise<AuthSession> {
-  return requestData('/api/v1/auth/setup', decodeAuthSession, {
-    method: 'POST',
-    headers: jsonHeaders,
-    body: JSON.stringify(credentials),
-  })
+): Promise<AuthUser> {
+  await requestEmpty(
+    '/api/v1/auth/setup',
+    {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(credentials),
+    },
+    sameOriginFetch,
+  )
+  return getCurrentUser()
 }
 
-export function login(credentials: UserCredentials): Promise<AuthSession> {
-  return requestData('/api/v1/auth/login', decodeAuthSession, {
-    method: 'POST',
-    headers: jsonHeaders,
-    body: JSON.stringify(credentials),
-  })
+export async function login(credentials: UserCredentials): Promise<AuthUser> {
+  await requestEmpty(
+    '/api/v1/auth/login',
+    { method: 'POST', headers: jsonHeaders, body: JSON.stringify(credentials) },
+    sameOriginFetch,
+  )
+  return getCurrentUser()
 }
 
-export function refreshAuthSession(refreshToken: string): Promise<AuthSession> {
-  return requestData('/api/v1/auth/refresh', decodeAuthSession, {
-    method: 'POST',
-    headers: jsonHeaders,
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  })
+export async function register(
+  credentials: RegistrationCredentials,
+): Promise<AuthUser> {
+  await requestEmpty(
+    '/api/v1/auth/register',
+    {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        username: credentials.username,
+        password: credentials.password,
+        invitation_code: credentials.invitationCode,
+      }),
+    },
+    sameOriginFetch,
+  )
+  return getCurrentUser()
+}
+
+export function getCurrentUser(): Promise<AuthUser> {
+  return requestData(
+    '/api/v1/auth/me',
+    decodeAuthUser,
+    undefined,
+    sameOriginFetch,
+  )
 }

@@ -18,7 +18,7 @@ export function ProviderDetailPage() {
   return (
     <ProviderDetail
       accountId={accountId}
-      currentUserId={authState.session.user.id}
+      currentUserId={authState.user.id}
     />
   )
 }

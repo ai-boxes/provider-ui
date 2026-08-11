@@ -8,5 +8,5 @@ export function ProvidersPage() {
     return null
   }
 
-  return <ProviderList currentUserId={authState.session.user.id} />
+  return <ProviderList currentUserId={authState.user.id} />
 }

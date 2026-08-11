@@ -168,7 +168,12 @@ export function UserCreateDialog() {
         </form>
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose
+            disabled={submitting}
+            render={<Button variant="outline" disabled={submitting} />}
+          >
+            Cancel
+          </DialogClose>
           <Button type="submit" form="user-create-form" disabled={submitting}>
             {submitting ? (
               <Loader2Icon className="animate-spin" />

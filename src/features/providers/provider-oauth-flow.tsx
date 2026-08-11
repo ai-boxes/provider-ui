@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
@@ -38,11 +38,8 @@ import type {
   ProviderOAuthSession,
 } from '@/features/providers/provider-types'
 import { ApiError } from '@/lib/api/error'
+import { formatUnixSeconds } from '@/lib/datetime'
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function ProviderOAuthFlow({
   sessionId,
@@ -52,13 +49,15 @@ export function ProviderOAuthFlow({
   provider?: OAuthProviderKind
 }) {
   const navigate = useNavigate()
+  const [startOverError, setStartOverError] = useState<unknown>(null)
+  const [startingOver, setStartingOver] = useState(false)
   const [, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const session = useQuery({
     ...providerOAuthSessionQueryOptions(sessionId),
     refetchInterval: (query) => {
       const current = query.state.data
-      return current?.status === 'pending'
+      return current?.status === 'pending' || current?.status === 'provisioning'
         ? Math.max(current.challenge.intervalSeconds * 1000, 1000)
         : false
     },
@@ -93,7 +92,27 @@ export function ProviderOAuthFlow({
     ? formatOAuthService(sessionProvider)
     : 'upstream'
 
-  function startOver() {
+  async function startOver() {
+    setStartOverError(null)
+
+    if (!session.data || session.data.status === 'pending') {
+      setStartingOver(true)
+      try {
+        const cancelled = await cancelProviderOAuthSession(sessionId)
+        queryClient.setQueryData(
+          providerKeys.oauthSession(sessionId),
+          cancelled,
+        )
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 404)) {
+          setStartOverError(error)
+          return
+        }
+      } finally {
+        setStartingOver(false)
+      }
+    }
+
     setSearchParams(
       sessionProvider
         ? { provider: sessionProvider, method: 'oauth' }
@@ -106,6 +125,7 @@ export function ProviderOAuthFlow({
     <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6">
       <div className="grid gap-4">
         <Button
+          nativeButton={false}
           variant="ghost"
           size="sm"
           className="-ml-2 w-fit text-muted-foreground"
@@ -127,7 +147,13 @@ export function ProviderOAuthFlow({
 
       {session.isPending ? <OAuthSessionLoading /> : null}
       {session.isError ? (
-        <OAuthSessionError error={session.error} onStartOver={startOver} />
+        <OAuthSessionError
+          error={session.error}
+          startOverError={startOverError}
+          startingOver={startingOver}
+          onRetry={() => void session.refetch()}
+          onStartOver={() => void startOver()}
+        />
       ) : null}
       {session.data ? (
         <OAuthSessionCard
@@ -135,7 +161,7 @@ export function ProviderOAuthFlow({
           cancelling={cancelSession.isPending}
           cancelError={cancelSession.error}
           onCancel={() => cancelSession.mutate()}
-          onStartOver={startOver}
+          onStartOver={() => void startOver()}
         />
       ) : null}
     </section>
@@ -191,6 +217,22 @@ function OAuthSessionCard({
             </p>
           </div>
           <Spinner className="ml-auto" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (session.status === 'provisioning') {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3 py-4">
+          <Spinner className="size-5" />
+          <div>
+            <p className="font-medium">Creating Provider</p>
+            <p className="text-sm text-muted-foreground">
+              Loading models and finishing setup.
+            </p>
+          </div>
         </CardContent>
       </Card>
     )
@@ -293,9 +335,15 @@ function OAuthSessionLoading() {
 
 function OAuthSessionError({
   error,
+  startOverError,
+  startingOver,
+  onRetry,
   onStartOver,
 }: {
   error: unknown
+  startOverError: unknown
+  startingOver: boolean
+  onRetry: () => void
   onStartOver: () => void
 }) {
   const unavailable = error instanceof ApiError && error.status === 404
@@ -313,18 +361,25 @@ function OAuthSessionError({
           ? 'The server may have restarted or the session may have expired.'
           : 'Check the server connection and try again.'}
       </AlertDescription>
-      <Button
-        size="sm"
-        variant="outline"
-        className="mt-3 w-fit group-has-[>svg]/alert:col-start-2"
-        onClick={onStartOver}
-      >
-        Start again
-      </Button>
+      {startOverError ? (
+        <p className="mt-2 text-sm text-destructive group-has-[>svg]/alert:col-start-2">
+          The current session could not be cancelled. Retry this session or try
+          starting over again.
+        </p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2 group-has-[>svg]/alert:col-start-2">
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          Retry current session
+        </Button>
+        <Button size="sm" onClick={onStartOver} disabled={startingOver}>
+          {startingOver ? <Loader2Icon className="animate-spin" /> : null}
+          Start again
+        </Button>
+      </div>
     </Alert>
   )
 }
 
 function formatTimestamp(timestamp: number): string {
-  return dateTimeFormatter.format(new Date(timestamp * 1000))
+  return formatUnixSeconds(timestamp)
 }

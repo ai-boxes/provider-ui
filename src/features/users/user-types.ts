@@ -9,6 +9,11 @@ export type ManagedUser = {
   updatedAt: number
 }
 
+export type CreatedRegistrationCode = {
+  code: string
+  expiresAt: number
+}
+
 export type CreateUserInput = {
   username: string
   password: string

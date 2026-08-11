@@ -5,13 +5,18 @@ import {
 import {
   decodeApiKey,
   decodeApiKeyDetail,
+  decodeCreatedApiKey,
   decodeApiKeys,
-  decodeGeneratedApiKey,
 } from '@/features/api-keys/api-key-decoders'
+import {
+  apiKeyPatchBody,
+  createApiKeyBody,
+} from '@/features/api-keys/api-key-payload'
 import type {
   ApiKeyDetail,
   ApiKeySummary,
   CreateApiKeyInput,
+  CreatedApiKey,
   UpdateApiKeyInput,
 } from '@/features/api-keys/api-key-types'
 
@@ -27,23 +32,11 @@ export function getApiKey(keyId: string): Promise<ApiKeyDetail> {
   return requestAuthenticatedData(apiKeyEndpoint(keyId), decodeApiKeyDetail)
 }
 
-export function generateApiKey(): Promise<string> {
-  return requestAuthenticatedData(
-    '/api/v1/keys/generate',
-    decodeGeneratedApiKey,
-    { method: 'POST' },
-  )
-}
-
-export function createApiKey(input: CreateApiKeyInput): Promise<ApiKeyDetail> {
-  return requestAuthenticatedData('/api/v1/keys', decodeApiKeyDetail, {
+export function createApiKey(input: CreateApiKeyInput): Promise<CreatedApiKey> {
+  return requestAuthenticatedData('/api/v1/keys', decodeCreatedApiKey, {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({
-      label: input.label,
-      key: input.key,
-      expires_at: input.expiresAt,
-    }),
+    body: JSON.stringify(createApiKeyBody(input)),
   })
 }
 
@@ -51,10 +44,7 @@ export function updateApiKey(input: UpdateApiKeyInput): Promise<ApiKeySummary> {
   return requestAuthenticatedData(apiKeyEndpoint(input.keyId), decodeApiKey, {
     method: 'PUT',
     headers: jsonHeaders,
-    body: JSON.stringify({
-      enabled: input.enabled,
-      expires_at: input.expiresAt,
-    }),
+    body: JSON.stringify(apiKeyPatchBody(input)),
   })
 }
 
