@@ -59,6 +59,7 @@ import {
   ProviderModelEditDialog,
   ProviderModelRefreshControl,
 } from '@/features/providers/provider-model-management'
+import { formatProviderModelInputModalities } from '@/features/providers/provider-model-modalities'
 import { formatProviderKind } from '@/features/providers/provider-format'
 import {
   ProviderHealthCard,
@@ -409,7 +410,9 @@ function ModelsTable({
                           </span>
                         ) : null}
                         <span className="text-xs text-muted-foreground">
-                          {formatInputModalities(model)}
+                          {formatProviderModelInputModalities(
+                            model.inputModalities,
+                          )}
                         </span>
                       </div>
                     </TableCell>
@@ -457,7 +460,9 @@ function ModelsTable({
                       {model.upstreamModel}
                     </code>
                     <span className="text-xs text-muted-foreground">
-                      {formatInputModalities(model)}
+                      {formatProviderModelInputModalities(
+                        model.inputModalities,
+                      )}
                     </span>
                   </div>
                   <ModelStatusBadge model={model} />
@@ -518,15 +523,6 @@ function ModelsTable({
       )}
     </>
   )
-}
-
-function formatInputModalities(model: ProviderModel): string {
-  if (model.inputModalities === null) {
-    return 'Input capability not declared'
-  }
-  return model.inputModalities.includes('image')
-    ? 'Text and image input'
-    : 'Text-only input'
 }
 
 function ModelPricingSummary({ model }: { model: ProviderModel }) {

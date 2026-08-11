@@ -142,7 +142,12 @@ export type ProviderModel = {
   updatedAt: number
 }
 
-export type ProviderModelInputModality = 'text' | 'image'
+export type ProviderModelInputModality =
+  | 'text'
+  | 'image'
+  | 'pdf'
+  | 'audio'
+  | 'video'
 
 export type ProviderModelPricing = {
   input: string | null

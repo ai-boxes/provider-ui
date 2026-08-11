@@ -14,6 +14,7 @@ import { z } from 'zod'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogClose,
@@ -30,15 +31,10 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
   refreshProviderModels,
@@ -49,6 +45,11 @@ import {
   isSafeTokenThreshold,
   MAX_SAFE_TOKEN_THRESHOLD,
 } from '@/features/providers/provider-model-pricing'
+import {
+  commonProviderModelInputModalities,
+  formatProviderModelInputModality,
+  providerModelInputModalitiesForUpdate,
+} from '@/features/providers/provider-model-modalities'
 import { providerKeys } from '@/features/providers/providers-query'
 import type {
   ProviderModel,
@@ -86,7 +87,7 @@ const modelEditSchema = z
   .object({
     alias: z.string().transform((value) => value.trim()),
     enabled: z.boolean(),
-    inputMode: z.enum(['unknown', 'text', 'text_image']),
+    inputModalities: z.array(z.enum(commonProviderModelInputModalities)),
     input: decimalPriceSchema,
     output: decimalPriceSchema,
     cacheRead: decimalPriceSchema,
@@ -284,7 +285,9 @@ export function ProviderModelEditDialog({
               upstreamModel: model.upstreamModel,
               alias: values.alias || undefined,
               enabled: values.enabled,
-              inputModalities: inputModalitiesFromMode(values.inputMode),
+              inputModalities: providerModelInputModalitiesForUpdate(
+                values.inputModalities,
+              ),
               pricingChanged,
               pricing,
             })
@@ -340,34 +343,48 @@ export function ProviderModelEditDialog({
               </div>
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor={`model-input-mode-${id}`}>
-                Input capability
-              </FieldLabel>
+            <FieldSet className="gap-2">
+              <FieldLegend variant="label">Input capabilities</FieldLegend>
               <Controller
                 control={form.control}
-                name="inputMode"
+                name="inputModalities"
                 render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(value) => value && field.onChange(value)}
-                    disabled={updateModel.isPending}
-                  >
-                    <SelectTrigger id={`model-input-mode-${id}`} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      <SelectItem value="unknown">Not declared</SelectItem>
-                      <SelectItem value="text">Text only</SelectItem>
-                      <SelectItem value="text_image">Text and image</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-3 rounded-lg border px-3 py-3 sm:grid-cols-3">
+                    {commonProviderModelInputModalities.map((modality, index) => {
+                      const checkboxId = `model-input-modality-${index}-${id}`
+                      return (
+                        <label
+                          key={modality}
+                          htmlFor={checkboxId}
+                          className="flex min-w-0 items-center gap-2 text-sm"
+                        >
+                          <Checkbox
+                            id={checkboxId}
+                            checked={field.value.includes(modality)}
+                            disabled={updateModel.isPending}
+                            onCheckedChange={(checked) => {
+                              field.onChange(
+                                checked
+                                  ? [...field.value, modality]
+                                  : field.value.filter(
+                                      (selected) => selected !== modality,
+                                    ),
+                              )
+                            }}
+                          />
+                          <span className="break-all" translate="no">
+                            {formatProviderModelInputModality(modality)}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
                 )}
               />
               <FieldDescription>
-                Text-only OpenAI-compatible models omit images from tool results.
+                Clear every option to leave input capabilities undeclared.
               </FieldDescription>
-            </Field>
+            </FieldSet>
 
             <div className="grid gap-1">
               <p className="text-sm font-medium">Pricing</p>
@@ -528,7 +545,7 @@ function modelDefaultValues(model: ProviderModel): ModelEditValues {
   return {
     alias: model.alias ?? '',
     enabled: model.enabled,
-    inputMode: inputModeFromModalities(model.inputModalities),
+    inputModalities: model.inputModalities ?? [],
     input: model.pricing?.input ?? '',
     output: model.pricing?.output ?? '',
     cacheRead: model.pricing?.cacheRead ?? '',
@@ -547,28 +564,6 @@ function modelDefaultValues(model: ProviderModel): ModelEditValues {
         inputAudio: tier.inputAudio ?? '',
         outputAudio: tier.outputAudio ?? '',
       })) ?? [],
-  }
-}
-
-function inputModeFromModalities(
-  modalities: ProviderModel['inputModalities'],
-): ModelEditValues['inputMode'] {
-  if (modalities === null) {
-    return 'unknown'
-  }
-  return modalities.includes('image') ? 'text_image' : 'text'
-}
-
-function inputModalitiesFromMode(
-  mode: ModelEditValues['inputMode'],
-): ProviderModel['inputModalities'] {
-  switch (mode) {
-    case 'unknown':
-      return null
-    case 'text':
-      return ['text']
-    case 'text_image':
-      return ['text', 'image']
   }
 }
 
