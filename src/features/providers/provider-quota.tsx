@@ -24,12 +24,12 @@ import {
   getProviderQuota,
   refreshProviderQuota,
 } from '@/features/providers/provider-api'
+import { providerQuotaQueryOptions } from '@/features/providers/providers-query'
 import {
-  providerKeys,
-  providerQuotaQueryOptions,
-} from '@/features/providers/providers-query'
+  syncProviderListQuota,
+  syncQuotaCache,
+} from '@/features/providers/provider-quota-cache'
 import type {
-  ProviderAccountWithQuota,
   ProviderQuota,
   ProviderQuotaErrorKind,
   ProviderQuotaGroup,
@@ -620,29 +620,6 @@ function QuotaRequestError({ onRetry }: { onRetry: () => void }) {
         Retry
       </Button>
     </Alert>
-  )
-}
-
-function syncQuotaCache(
-  queryClient: ReturnType<typeof useQueryClient>,
-  accountId: string,
-  quota: ProviderQuota,
-) {
-  queryClient.setQueryData(providerKeys.quota(accountId), quota)
-  syncProviderListQuota(queryClient, accountId, quota)
-}
-
-function syncProviderListQuota(
-  queryClient: ReturnType<typeof useQueryClient>,
-  accountId: string,
-  quota: ProviderQuota,
-) {
-  queryClient.setQueryData<ProviderAccountWithQuota[]>(
-    providerKeys.all,
-    (accounts) =>
-      accounts?.map((account) =>
-        account.id === accountId ? { ...account, quota } : account,
-      ),
   )
 }
 

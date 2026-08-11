@@ -313,11 +313,11 @@ function UsageSummary({ overview }: { overview: UsageOverviewData }) {
       />
       <UsageStat
         label="Input tokens"
-        value={formatUsageCount(tokens.effectiveInput)}
+        value={formatUsageCompactCount(tokens.effectiveInput)}
       />
       <UsageStat
         label="Output tokens"
-        value={formatUsageCount(tokens.output)}
+        value={formatUsageCompactCount(tokens.output)}
       />
       <UsageStat label="Window cost" value={windowCost} />
       <UsageStat label="Cache hit rate" value={formatCacheHitRate(cache)} />
