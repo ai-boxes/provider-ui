@@ -222,6 +222,7 @@ export function updateProviderModel(
         upstream_model: input.upstreamModel,
         alias: input.alias,
         enabled: input.enabled,
+        input_modalities: input.inputModalities,
         pricing_changed: input.pricingChanged,
         ...(input.pricingChanged
           ? {

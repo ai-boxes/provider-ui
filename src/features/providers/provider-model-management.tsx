@@ -32,6 +32,13 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
   refreshProviderModels,
@@ -79,6 +86,7 @@ const modelEditSchema = z
   .object({
     alias: z.string().transform((value) => value.trim()),
     enabled: z.boolean(),
+    inputMode: z.enum(['unknown', 'text', 'text_image']),
     input: decimalPriceSchema,
     output: decimalPriceSchema,
     cacheRead: decimalPriceSchema,
@@ -276,6 +284,7 @@ export function ProviderModelEditDialog({
               upstreamModel: model.upstreamModel,
               alias: values.alias || undefined,
               enabled: values.enabled,
+              inputModalities: inputModalitiesFromMode(values.inputMode),
               pricingChanged,
               pricing,
             })
@@ -329,6 +338,35 @@ export function ProviderModelEditDialog({
                   )}
                 />
               </div>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor={`model-input-mode-${id}`}>
+                Input capability
+              </FieldLabel>
+              <Controller
+                control={form.control}
+                name="inputMode"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => value && field.onChange(value)}
+                    disabled={updateModel.isPending}
+                  >
+                    <SelectTrigger id={`model-input-mode-${id}`} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectItem value="unknown">Not declared</SelectItem>
+                      <SelectItem value="text">Text only</SelectItem>
+                      <SelectItem value="text_image">Text and image</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldDescription>
+                Text-only OpenAI-compatible models omit images from tool results.
+              </FieldDescription>
             </Field>
 
             <div className="grid gap-1">
@@ -490,6 +528,7 @@ function modelDefaultValues(model: ProviderModel): ModelEditValues {
   return {
     alias: model.alias ?? '',
     enabled: model.enabled,
+    inputMode: inputModeFromModalities(model.inputModalities),
     input: model.pricing?.input ?? '',
     output: model.pricing?.output ?? '',
     cacheRead: model.pricing?.cacheRead ?? '',
@@ -508,6 +547,28 @@ function modelDefaultValues(model: ProviderModel): ModelEditValues {
         inputAudio: tier.inputAudio ?? '',
         outputAudio: tier.outputAudio ?? '',
       })) ?? [],
+  }
+}
+
+function inputModeFromModalities(
+  modalities: ProviderModel['inputModalities'],
+): ModelEditValues['inputMode'] {
+  if (modalities === null) {
+    return 'unknown'
+  }
+  return modalities.includes('image') ? 'text_image' : 'text'
+}
+
+function inputModalitiesFromMode(
+  mode: ModelEditValues['inputMode'],
+): ProviderModel['inputModalities'] {
+  switch (mode) {
+    case 'unknown':
+      return null
+    case 'text':
+      return ['text']
+    case 'text_image':
+      return ['text', 'image']
   }
 }
 

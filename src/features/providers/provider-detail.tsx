@@ -408,6 +408,9 @@ function ModelsTable({
                             Alias enabled
                           </span>
                         ) : null}
+                        <span className="text-xs text-muted-foreground">
+                          {formatInputModalities(model)}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -453,6 +456,9 @@ function ModelsTable({
                     <code className="truncate font-mono text-xs text-muted-foreground">
                       {model.upstreamModel}
                     </code>
+                    <span className="text-xs text-muted-foreground">
+                      {formatInputModalities(model)}
+                    </span>
                   </div>
                   <ModelStatusBadge model={model} />
                 </div>
@@ -512,6 +518,15 @@ function ModelsTable({
       )}
     </>
   )
+}
+
+function formatInputModalities(model: ProviderModel): string {
+  if (model.inputModalities === null) {
+    return 'Input capability not declared'
+  }
+  return model.inputModalities.includes('image')
+    ? 'Text and image input'
+    : 'Text-only input'
 }
 
 function ModelPricingSummary({ model }: { model: ProviderModel }) {

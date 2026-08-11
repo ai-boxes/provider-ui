@@ -28,6 +28,7 @@ import type {
   ProviderCredentialKind,
   ProviderKind,
   ProviderModel,
+  ProviderModelInputModality,
   ProviderModelPricing,
   ProviderModelPricingTier,
   ProviderModelCatalogSnapshot,
@@ -111,6 +112,11 @@ const providerQuotaPeriodKinds = [
   'rolling',
   'unknown',
 ] as const satisfies readonly ProviderQuotaPeriodKind[]
+
+const providerModelInputModalities = [
+  'text',
+  'image',
+] as const satisfies readonly ProviderModelInputModality[]
 
 export function decodeProviderAccounts(
   value: unknown,
@@ -302,12 +308,39 @@ function decodeProviderModel(value: unknown, label: string): ProviderModel {
     enabled: requireBoolean(record.enabled, 'model enabled state'),
     available: requireBoolean(record.available, 'model availability'),
     routable: requireBoolean(record.routable, 'model routable state'),
+    inputModalities: decodeProviderModelInputModalities(
+      record.input_modalities,
+    ),
     metadata: optionalRecord(record.metadata, 'model metadata'),
     pricing: decodeProviderModelPricing(record.pricing),
     lastSeenAt: optionalTimestamp(record.last_seen_at, 'model last seen time'),
     createdAt: requireTimestamp(record.created_at, 'model creation time'),
     updatedAt: requireTimestamp(record.updated_at, 'model update time'),
   }
+}
+
+function decodeProviderModelInputModalities(
+  value: unknown,
+): ProviderModelInputModality[] | null {
+  if (value === null) {
+    return null
+  }
+
+  const modalities = requireArray(value, 'model input modalities').map(
+    (modality) =>
+      requireEnum(
+        modality,
+        providerModelInputModalities,
+        'model input modality',
+      ),
+  )
+  const canonical = JSON.stringify(modalities)
+  if (canonical !== '["text"]' && canonical !== '["text","image"]') {
+    throw new TypeError(
+      'model input modalities must be ["text"] or ["text", "image"]',
+    )
+  }
+  return modalities
 }
 
 function decodeProviderModelPricing(value: unknown): ProviderModelPricing | null {

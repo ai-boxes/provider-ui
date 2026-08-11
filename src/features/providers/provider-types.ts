@@ -134,12 +134,15 @@ export type ProviderModel = {
   enabled: boolean
   available: boolean
   routable: boolean
+  inputModalities: ProviderModelInputModality[] | null
   metadata: Record<string, unknown> | null
   pricing: ProviderModelPricing | null
   lastSeenAt: number | null
   createdAt: number
   updatedAt: number
 }
+
+export type ProviderModelInputModality = 'text' | 'image'
 
 export type ProviderModelPricing = {
   input: string | null
@@ -235,6 +238,7 @@ export type UpdateProviderModelInput = {
   upstreamModel: string
   alias?: string
   enabled: boolean
+  inputModalities: ProviderModelInputModality[] | null
   pricingChanged: boolean
   pricing: ProviderModelPricing | null
 }
