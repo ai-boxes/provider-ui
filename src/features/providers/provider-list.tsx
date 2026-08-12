@@ -37,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ProviderEditDialog } from '@/features/providers/provider-account-management'
+import { ProviderEditDialog } from '@/features/providers/provider-account-edit'
 import { formatProviderKind } from '@/features/providers/provider-format'
 import { ProviderQuotaSummary } from '@/features/providers/provider-quota'
 import {
