@@ -58,7 +58,7 @@ export function UserList() {
     <section className="flex flex-1 flex-col gap-6">
       <PageHeader
         title="Users"
-        description="Manage who can sign in. Provider configuration remains restricted to super administrators."
+        description="Manage who can sign in and assign super administrator permission."
         actions={
           <div className="flex flex-wrap gap-2">
             <RegistrationCodeCreateDialog />

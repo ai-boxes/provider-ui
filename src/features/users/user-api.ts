@@ -10,6 +10,7 @@ import type {
   ManagedUser,
   ResetUserPasswordInput,
   UpdateUserEnabledInput,
+  UpdateUserRoleInput,
 } from '@/features/users/user-types'
 
 const jsonHeaders = {
@@ -51,6 +52,20 @@ export function updateUserEnabled(
       body: JSON.stringify({
         enabled: input.enabled,
       }),
+    },
+  )
+}
+
+export function updateUserRole(
+  input: UpdateUserRoleInput,
+): Promise<ManagedUser> {
+  return requestAuthenticatedData(
+    `${userEndpoint(input.userId)}/role`,
+    decodeManagedUser,
+    {
+      method: 'PUT',
+      headers: jsonHeaders,
+      body: JSON.stringify({ role: input.role }),
     },
   )
 }

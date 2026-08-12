@@ -24,6 +24,11 @@ export type UpdateUserEnabledInput = {
   enabled: boolean
 }
 
+export type UpdateUserRoleInput = {
+  userId: string
+  role: AuthUserRole
+}
+
 export type ResetUserPasswordInput = {
   userId: string
   password: string

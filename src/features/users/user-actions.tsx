@@ -52,6 +52,7 @@ import {
   updateUserEnabled,
 } from '@/features/users/user-api'
 import type { ManagedUser } from '@/features/users/user-types'
+import { UserRoleEditDialog } from '@/features/users/user-role-edit'
 import { userKeys } from '@/features/users/users-query'
 import { apiErrorMessage } from '@/lib/api/error'
 import { replaceListItem } from '@/lib/api/query-cache'
@@ -183,6 +184,7 @@ export function UserActions({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <UserRoleEditDialog user={user} isSelf={user.id === currentUserId} />
       <UserEditDialog user={user} isSelf={user.id === currentUserId} />
     </div>
   )
