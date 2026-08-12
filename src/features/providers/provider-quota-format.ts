@@ -130,7 +130,7 @@ export function quotaErrorMessage(error: ProviderQuotaErrorKind): string {
       'The upstream Provider is limiting quota checks. Try again later.',
     upstream: 'The upstream quota service is currently unavailable.',
     invalid_response:
-      'The Provider returned quota data in an unsupported format.',
+      'The Provider returned an invalid quota response.',
     internal: 'Quota data could not be processed.',
   }
 
