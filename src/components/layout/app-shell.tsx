@@ -9,20 +9,12 @@ import {
 import { NavLink, Outlet, useLocation } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { buttonVariants } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -61,6 +53,15 @@ const primaryNavigation = [
   },
 ] as const
 
+const administrationNavigation = [
+  {
+    label: 'Users',
+    href: '/users',
+    icon: UsersIcon,
+    superAdminOnly: true,
+  },
+] as const
+
 export function AppShell() {
   const authState = useAuthState()
   const location = useLocation()
@@ -78,7 +79,7 @@ export function AppShell() {
     <SidebarProvider>
       <AppSidebar user={authState.user} />
       <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-background">
-        <header className="z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/85 px-4 backdrop-blur-xl sm:px-6">
+        <header className="z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border/70 bg-card/85 px-4 backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="h-4" />
@@ -86,7 +87,6 @@ export function AppShell() {
               {getPageTitle(location.pathname)}
             </span>
           </div>
-          <UserMenu user={authState.user} />
         </header>
         <div
           ref={scrollContainerRef}
@@ -152,7 +152,26 @@ function AppSidebar({ user }: { user: AuthUser }) {
             />
           </SidebarGroupContent>
         </SidebarGroup>
+        {user.role === 'super_admin' ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <NavigationMenu
+                items={administrationNavigation}
+                onNavigate={closeMobileSidebar}
+              />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
       </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <UserAccount user={user} />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
@@ -200,7 +219,7 @@ function NavigationMenu({
   )
 }
 
-function UserMenu({ user }: { user: AuthUser }) {
+function UserAccount({ user }: { user: AuthUser }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   async function handleLogout() {
@@ -218,66 +237,33 @@ function UserMenu({ user }: { user: AuthUser }) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`Open account menu for ${user.username}`}
-        className={buttonVariants({
-          variant: 'ghost',
-          size: 'icon',
-          className:
-            'rounded-full data-open:bg-muted data-popup-open:bg-muted',
-        })}
-      >
-        <Avatar size="default">
-          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+    <div className="flex h-12 min-w-0 items-center gap-2 rounded-lg bg-sidebar-accent/60 p-2 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!">
+      <div className="flex min-w-0 flex-1 items-center gap-2 group-data-[collapsible=icon]:justify-center">
+        <Avatar className="rounded-lg" size="default">
+          <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
             {getUserInitial(user.username)}
           </AvatarFallback>
         </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side="bottom"
-        align="end"
-        sideOffset={8}
-        className="w-56 min-w-56"
+        <div className="grid min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
+          <span className="truncate text-sm font-medium">{user.username}</span>
+          <span className="truncate text-xs text-sidebar-foreground/60">
+            {formatRole(user.role)}
+          </span>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Log out ${user.username}`}
+        title="Log out"
+        disabled={isLoggingOut}
+        onClick={() => void handleLogout()}
+        className="text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:hidden"
       >
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="p-2 font-normal">
-            <div className="flex items-center gap-2">
-              <Avatar className="rounded-lg" size="default">
-                <AvatarFallback className="rounded-lg">
-                  {getUserInitial(user.username)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid min-w-0 flex-1 leading-tight">
-                <span className="truncate text-sm font-medium text-foreground">
-                  {user.username}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {formatRole(user.role)}
-                </span>
-              </div>
-            </div>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        {user.role === 'super_admin' ? (
-          <>
-            <DropdownMenuItem render={<NavLink to="/users" />}>
-              <UsersIcon />
-              Users
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        ) : null}
-        <DropdownMenuItem
-          disabled={isLoggingOut}
-          onClick={() => void handleLogout()}
-        >
-          <LogOutIcon />
-          {isLoggingOut ? 'Logging out…' : 'Log out'}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        <LogOutIcon className={isLoggingOut ? 'animate-pulse' : undefined} />
+      </Button>
+    </div>
   )
 }
 
@@ -294,7 +280,7 @@ function getPageTitle(pathname: string): string {
     return 'Users'
   }
 
-  const navigation = primaryNavigation
+  const navigation = [...primaryNavigation, ...administrationNavigation]
   return (
     navigation.find(
       (item) =>
