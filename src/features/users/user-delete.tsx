@@ -70,9 +70,7 @@ export function UserDeleteDialog({
           </AlertDialogMedia>
           <AlertDialogTitle>Delete {user.username}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently deletes the user, their sessions, and all of their
-            API keys. Users that own providers must have those providers
-            deleted first.
+            Permanently deletes the user, sessions, and API keys.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.isError ? (

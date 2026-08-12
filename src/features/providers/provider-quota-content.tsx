@@ -127,16 +127,13 @@ export function ProviderQuotaContent({ quota }: { quota: ProviderQuota }) {
         ) : null}
 
         {!hasUsageMetrics && !hasBillingMetrics ? (
-          <p className="text-sm text-muted-foreground">
-            No quota metrics are currently available.
-          </p>
+          <p className="text-sm text-muted-foreground">No quota metrics.</p>
         ) : null}
       </div>
 
       {quota.snapshot.warnings.length > 0 ? (
         <p className="border-t pt-4 text-xs text-muted-foreground">
-          Some upstream quota details could not be displayed. The available
-          totals are shown above.
+          Some quota details are unavailable.
         </p>
       ) : null}
     </div>

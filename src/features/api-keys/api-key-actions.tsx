@@ -187,8 +187,7 @@ export function ApiKeyActions({
             </AlertDialogMedia>
             <AlertDialogTitle>Disable {apiKey.label}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Clients using this key will immediately lose access until you
-              enable it again.
+              Clients using this key will lose access.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {statusMutation.isError ? (
@@ -271,9 +270,7 @@ export function ApiKeyRevealDialog({ apiKey }: { apiKey: ApiKeySummary }) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{apiKey.label}</DialogTitle>
-          <DialogDescription>
-            Use this credential with a supported client. Keep it private.
-          </DialogDescription>
+          <DialogDescription>Keep this credential private.</DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -426,9 +423,7 @@ function ApiKeyEditDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit {apiKey.label}</DialogTitle>
-          <DialogDescription>
-            Update the name, provider group, expiration, and estimated USD quota.
-          </DialogDescription>
+          <DialogDescription>Update key settings.</DialogDescription>
         </DialogHeader>
 
         {mutation.isError ? (
@@ -453,9 +448,6 @@ function ApiKeyEditDialog({
                 aria-invalid={Boolean(form.formState.errors.label)}
                 {...form.register('label')}
               />
-              <FieldDescription>
-                Use a name that identifies the client or environment.
-              </FieldDescription>
               <FieldError errors={[form.formState.errors.label]} />
             </Field>
 
@@ -501,7 +493,7 @@ function ApiKeyEditDialog({
               <FieldDescription>
                 {apiKey.expiresAt !== null && apiKey.expiresAt <= Date.now() / 1000
                   ? 'This key is expired. Keep the existing value, choose a future time, or clear it so the key never expires.'
-                  : 'Leave empty for a key that never expires.'}
+                  : 'Empty means no expiration.'}
               </FieldDescription>
               <FieldError errors={[form.formState.errors.expiresAt]} />
             </Field>
@@ -588,7 +580,7 @@ function ApiKeyDeleteDialog({
           </AlertDialogMedia>
           <AlertDialogTitle>Delete {apiKey.label}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Clients using this key will immediately lose access. This action cannot be undone.
+            Permanently revokes this key.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

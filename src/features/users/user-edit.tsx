@@ -113,8 +113,8 @@ export function UserEditDialog({
           <DialogTitle>Edit {user.username}</DialogTitle>
           <DialogDescription>
             {isSelf
-              ? 'Set a new password. This immediately revokes your existing sessions and signs you out.'
-              : 'Update the user’s permission or set a new password. Either change immediately revokes existing sessions.'}
+              ? 'Changing your password signs you out.'
+              : 'Changes revoke the user’s sessions.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -154,7 +154,7 @@ export function UserEditDialog({
               <FieldDescription>
                 {isSelf
                   ? 'You cannot change your own permission.'
-                  : 'Super administrators can manage providers and users. Users manage only their own API keys and usage.'}
+                  : 'Super administrators can manage providers and users.'}
               </FieldDescription>
             </Field>
 
@@ -171,8 +171,7 @@ export function UserEditDialog({
                 {...form.register('password')}
               />
               <FieldDescription>
-                Leave blank to keep the current password. New passwords must
-                contain at least 6 characters.
+                Optional. At least 6 characters.
               </FieldDescription>
               <FieldError errors={[form.formState.errors.password]} />
             </Field>

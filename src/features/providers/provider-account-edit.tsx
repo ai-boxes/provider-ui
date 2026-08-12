@@ -235,9 +235,7 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
                 aria-invalid={Boolean(form.formState.errors.groupLabel)}
                 {...form.register('groupLabel')}
               />
-              <FieldDescription>
-                API keys select this label to route through matching accounts.
-              </FieldDescription>
+              <FieldDescription>Used by API keys for routing.</FieldDescription>
               <FieldError errors={[form.formState.errors.groupLabel]} />
             </Field>
 
@@ -256,8 +254,7 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
                 <NativeSelectOption value="shared">Shared</NativeSelectOption>
               </NativeSelect>
               <FieldDescription>
-                Shared Providers can be used by other users but remain editable
-                only by their owner.
+                Shared with all users; editable by the owner.
               </FieldDescription>
               <FieldError errors={[form.formState.errors.visibility]} />
             </Field>
@@ -275,9 +272,7 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
                 aria-invalid={Boolean(form.formState.errors.priority)}
                 {...form.register('priority', { valueAsNumber: true })}
               />
-              <FieldDescription>
-                Lower numbers are preferred within the same Provider group.
-              </FieldDescription>
+              <FieldDescription>Lower numbers route first.</FieldDescription>
               <FieldError errors={[form.formState.errors.priority]} />
             </Field>
 

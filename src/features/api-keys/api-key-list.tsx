@@ -86,7 +86,7 @@ export function ApiKeyList() {
     <section className="flex flex-1 flex-col gap-6">
       <PageHeader
         title="API keys"
-        description="Issue scoped credentials and monitor expiration, spending limits, and access status."
+        description="Manage client access and limits."
         actions={<ApiKeyCreateDialog providerGroups={providerGroups} />}
       />
       {content}
@@ -423,9 +423,7 @@ function ApiKeyListEmpty() {
             <KeyRoundIcon />
           </EmptyMedia>
           <EmptyTitle>No API keys yet</EmptyTitle>
-          <EmptyDescription>
-            Create a credential before connecting Codex, Claude, or another API client.
-          </EmptyDescription>
+          <EmptyDescription>Create a key to connect a client.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Card>

@@ -58,7 +58,7 @@ export function UserList() {
     <section className="flex flex-1 flex-col gap-6">
       <PageHeader
         title="Users"
-        description="Manage who can sign in and assign super administrator permission."
+        description="Manage accounts and permissions."
         actions={
           <div className="flex flex-wrap gap-2">
             <RegistrationCodeCreateDialog />
@@ -314,9 +314,7 @@ function UserListEmpty() {
             <UsersIcon />
           </EmptyMedia>
           <EmptyTitle>No users yet</EmptyTitle>
-          <EmptyDescription>
-            Create the first standard user account for this control plane.
-          </EmptyDescription>
+          <EmptyDescription>Create a user to get started.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Card>

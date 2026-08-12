@@ -17,9 +17,7 @@ export function ProviderHealthCard({
       <Card>
         <CardHeader className="border-b">
           <CardTitle>Health</CardTitle>
-          <CardDescription>
-            Successful and failed requests in the last 24 hours.
-          </CardDescription>
+          <CardDescription>Requests in the last 24 hours.</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Loading health data…</p>
@@ -33,9 +31,7 @@ export function ProviderHealthCard({
       <Card>
         <CardHeader className="border-b">
           <CardTitle>Health</CardTitle>
-          <CardDescription>
-            Successful and failed requests in the last 24 hours.
-          </CardDescription>
+          <CardDescription>Requests in the last 24 hours.</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -55,9 +51,7 @@ export function ProviderHealthCard({
     <Card>
       <CardHeader className="border-b">
         <CardTitle>Health</CardTitle>
-        <CardDescription>
-          Successful and failed requests in the last 24 hours.
-        </CardDescription>
+        <CardDescription>Requests in the last 24 hours.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5">
         <div

@@ -47,7 +47,7 @@ export function CompatibleProviderForm({
   return (
     <ProviderFormCard
       title="Provider configuration"
-      description="The base URL should point to the upstream API root used by this compatible provider."
+      description="Compatible provider settings."
       error={createProvider.error}
       footer={
         <Button
@@ -106,10 +106,7 @@ export function CompatibleProviderForm({
               aria-invalid={Boolean(form.formState.errors.baseUrl)}
               {...form.register('baseUrl')}
             />
-            <FieldDescription>
-              HTTP and HTTPS endpoints are supported, including local or
-              container hostnames.
-            </FieldDescription>
+            <FieldDescription>HTTP and HTTPS are supported.</FieldDescription>
             <FieldError errors={[form.formState.errors.baseUrl]} />
           </Field>
 

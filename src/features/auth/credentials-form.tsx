@@ -168,7 +168,7 @@ export function CredentialsForm({
               />
               {mode !== 'login' && !fieldErrors.password ? (
                 <FieldDescription id={`${mode}-password-description`}>
-                  Use at least 6 characters.
+                  At least 6 characters.
                 </FieldDescription>
               ) : null}
               <FieldError id={`${mode}-password-error`}>
@@ -248,8 +248,7 @@ function formContent(mode: CredentialsMode) {
   if (mode === 'setup') {
     return {
       title: 'Create administrator account',
-      description:
-        'Set up the first super administrator for this provider gateway.',
+      description: 'Create the first super administrator.',
       submitLabel: 'Create account',
       pendingLabel: 'Creating account',
     }
@@ -258,7 +257,7 @@ function formContent(mode: CredentialsMode) {
   if (mode === 'register') {
     return {
       title: 'Create account',
-      description: 'Choose a username and password to access the gateway.',
+      description: 'Create your account.',
       submitLabel: 'Register',
       pendingLabel: 'Creating account',
     }
@@ -266,7 +265,7 @@ function formContent(mode: CredentialsMode) {
 
   return {
     title: 'Sign in',
-    description: 'Enter your credentials to manage the provider gateway.',
+    description: 'Enter your credentials.',
     submitLabel: 'Sign in',
     pendingLabel: 'Signing in',
   }

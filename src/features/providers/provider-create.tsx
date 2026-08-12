@@ -30,28 +30,25 @@ const providerOptions = [
   {
     value: 'grok',
     title: 'Grok',
-    description: 'Connect an xAI account with OAuth or import credential JSON.',
+    description: 'xAI account via OAuth or JSON.',
     icon: SparklesIcon,
   },
   {
     value: 'codex',
     title: 'Codex',
-    description:
-      'Connect an OpenAI Codex subscription with device OAuth or credential JSON.',
+    description: 'Codex subscription via OAuth or JSON.',
     icon: Code2Icon,
   },
   {
     value: 'openai_compatible',
     title: 'OpenAI-compatible',
-    description:
-      'Connect an upstream that implements the OpenAI Chat Completions API.',
+    description: 'OpenAI Chat Completions endpoint.',
     icon: BotIcon,
   },
   {
     value: 'anthropic_compatible',
     title: 'Anthropic-compatible',
-    description:
-      'Connect an upstream that implements the Anthropic Messages API.',
+    description: 'Anthropic Messages endpoint.',
     icon: CloudCogIcon,
   },
 ] as const satisfies ReadonlyArray<{
@@ -80,7 +77,7 @@ export function ProviderCreate() {
     return (
       <CreateStep
         title="Choose a provider type"
-        description="Select the upstream protocol and authentication flow for this provider account."
+        description="Select a provider type."
         backTo="/providers"
         backLabel="Back to providers"
       >
@@ -106,7 +103,7 @@ export function ProviderCreate() {
     return (
       <CreateStep
         title={`Connect ${providerLabel}`}
-        description={`Use the ${serviceLabel} device authorization flow or import an existing credential document.`}
+        description="Choose a connection method."
         backTo="/providers/new"
         backLabel="Change provider type"
       >
@@ -114,14 +111,14 @@ export function ProviderCreate() {
           <SelectionCard
             href={`/providers/new?provider=${provider}&method=oauth`}
             title="Connect with OAuth"
-            description={`Authorize this application with an ${serviceLabel} device code. Recommended for new accounts.`}
+            description={`${serviceLabel} device authorization.`}
             icon={KeyRoundIcon}
             recommended
           />
           <SelectionCard
             href={`/providers/new?provider=${provider}&method=json`}
             title="Import credential JSON"
-            description="Paste a credential document or load a local JSON file into an editable field."
+            description="Use an existing credential document."
             icon={BracesIcon}
           />
         </div>
@@ -133,7 +130,7 @@ export function ProviderCreate() {
     return (
       <CreateStep
         title={`Connect ${formatProviderKind(provider)} with OAuth`}
-        description="Name the provider account and choose who can use it before starting authorization."
+        description="Configure the account before authorization."
         backTo={`/providers/new?provider=${provider}`}
         backLabel="Change connection method"
         narrow
@@ -147,7 +144,7 @@ export function ProviderCreate() {
     return (
       <CreateStep
         title={`Import ${formatProviderKind(provider)} credential JSON`}
-        description="Paste the credential document or load it from a local file, then review the editable content before creating the account."
+        description="Review and import the credential JSON."
         backTo={`/providers/new?provider=${provider}`}
         backLabel="Change connection method"
         narrow
@@ -164,7 +161,7 @@ export function ProviderCreate() {
   return (
     <CreateStep
       title={`Connect ${formatProviderKind(provider)}`}
-      description="Configure the upstream endpoint and API key used by this provider account."
+      description="Configure the endpoint and API key."
       backTo="/providers/new"
       backLabel="Change provider type"
       narrow

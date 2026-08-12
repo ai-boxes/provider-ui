@@ -111,9 +111,7 @@ export function UserEnabledControl({
             </AlertDialogMedia>
             <AlertDialogTitle>Disable {user.username}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This immediately revokes the user&apos;s sessions and permanently
-              disables all of their API keys. Re-enabling the account does not
-              re-enable those keys.
+              Revokes sessions and permanently disables their API keys.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {mutation.isError ? (

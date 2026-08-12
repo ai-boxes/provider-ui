@@ -34,7 +34,7 @@ export function AuthRouteBoundary() {
     return (
       <AuthStatusCard
         title="Restoring session"
-        description="Checking your browser session."
+        description="Please wait."
         busy
       />
     )
@@ -44,7 +44,7 @@ export function AuthRouteBoundary() {
     return (
       <AuthStatusCard
         title="Unable to restore session"
-        description="Check your connection and try again, or return to sign in."
+        description="Retry or sign in again."
         actions={
           <div className="flex w-full flex-col gap-2 sm:flex-row">
             <Button className="flex-1" onClick={() => void restoreAuthSession()}>
@@ -75,7 +75,7 @@ export function AuthRouteBoundary() {
     return (
       <AuthStatusCard
         title="Checking setup"
-        description="Determining how to continue."
+        description="Please wait."
         busy
       />
     )
@@ -85,7 +85,7 @@ export function AuthRouteBoundary() {
     return (
       <AuthStatusCard
         title="Unable to check setup"
-        description="The server could not be reached. Check your connection and try again."
+        description="Check the server connection."
         actions={
           <Button
             className="w-full"

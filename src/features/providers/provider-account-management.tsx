@@ -41,16 +41,16 @@ function privateDisableImpact(
 ): string {
   if (!impact.ready) {
     if (impact.failed) {
-      return `API keys owned by you may use “${account.groupLabel}”, but their routing impact could not be loaded. Disabling this account may leave those keys without an enabled Provider.`
+      return `Impact for “${account.groupLabel}” could not be loaded.`
     }
-    return `Checking API keys and enabled Providers in “${account.groupLabel}” before disabling this account.`
+    return `Checking “${account.groupLabel}” routing impact.`
   }
 
   if (impact.alternativeEnabledProviders > 0) {
-    return `${impact.apiKeyCount} API key${impact.apiKeyCount === 1 ? '' : 's'} owned by you use “${account.groupLabel}”. They can continue routing through ${impact.alternativeEnabledProviders} other enabled Provider${impact.alternativeEnabledProviders === 1 ? '' : 's'} available to you in this group.`
+    return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} can use ${impact.alternativeEnabledProviders} other enabled provider${impact.alternativeEnabledProviders === 1 ? '' : 's'}.`
   }
 
-  return `${impact.apiKeyCount} API key${impact.apiKeyCount === 1 ? '' : 's'} owned by you use “${account.groupLabel}”. Disabling this account leaves you without an enabled Provider in that group, so those keys cannot route requests.`
+  return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} will lose routing in “${account.groupLabel}”.`
 }
 
 export function ProviderEnabledControl({
@@ -151,10 +151,8 @@ export function ProviderEnabledControl({
             <AlertDialogTitle>Disable {account.label}?</AlertDialogTitle>
             <AlertDialogDescription>
               {account.visibility === 'shared'
-                ? `API keys owned by you or other users may route through the shared “${account.groupLabel}” group. Disabling this account may leave some users without an eligible Provider.`
+                ? `Shared keys may lose routing in “${account.groupLabel}”.`
                 : privateDisableImpact(account, impact)}
-              {' '}Re-enable this account, enable another Provider in the
-              group, or move the API keys to restore routing.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

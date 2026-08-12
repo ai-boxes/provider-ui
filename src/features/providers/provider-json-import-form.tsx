@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -70,7 +69,7 @@ export function ProviderJsonImportForm({
   return (
     <ProviderFormCard
       title="Provider details and credential"
-      description="Credential content stays in this form until it is submitted to the provider API."
+      description="Import provider credentials."
       error={importProvider.error}
       footer={
         <Button
@@ -126,8 +125,7 @@ export function ProviderJsonImportForm({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">Choose a credential file</p>
                   <p className="text-xs leading-5 text-muted-foreground">
-                    The file is read locally and its text replaces the editable
-                    field below.
+                    Loads into the field below.
                   </p>
                 </div>
                 <Input
@@ -164,9 +162,6 @@ export function ProviderJsonImportForm({
               aria-invalid={Boolean(form.formState.errors.credentialJson)}
               {...form.register('credentialJson')}
             />
-            <FieldDescription>
-              Review or edit the current content before creating the Provider.
-            </FieldDescription>
             <FieldError
               errors={[form.formState.errors.credentialJson]}
             />

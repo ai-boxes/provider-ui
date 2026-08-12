@@ -82,13 +82,10 @@ export function ProviderDeleteDialog({ account }: { account: ProviderAccount }) 
           </AlertDialogMedia>
           <AlertDialogTitle>Delete {account.label}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently removes the Provider account and its stored model
-            catalog. API keys are not deleted or moved.{' '}
+            Permanently deletes the provider and model catalog.{' '}
             {account.visibility === 'shared'
-              ? `API keys owned by you or other users may route through the shared “${account.groupLabel}” group. Deletion may leave some users without an eligible Provider.`
+              ? `Shared keys may lose routing in “${account.groupLabel}”.`
               : privateDeleteImpact(account, impact)}
-            {' '}To restore affected routing, move those keys or add an enabled
-            Provider with the same group label. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -148,14 +145,14 @@ function privateDeleteImpact(
 ): string {
   if (!impact.ready) {
     if (impact.failed) {
-      return `API keys owned by you may use “${account.groupLabel}”, but their routing impact could not be loaded. Deletion may leave those keys without an enabled Provider.`
+      return `Impact for “${account.groupLabel}” could not be loaded.`
     }
-    return `Checking API keys and enabled Providers in “${account.groupLabel}” before deletion.`
+    return `Checking “${account.groupLabel}” routing impact.`
   }
 
   if (impact.alternativeEnabledProviders > 0) {
-    return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} owned by you can continue routing through ${impact.alternativeEnabledProviders} other enabled Provider${impact.alternativeEnabledProviders === 1 ? '' : 's'} available to you in “${account.groupLabel}”.`
+    return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} can use ${impact.alternativeEnabledProviders} other enabled provider${impact.alternativeEnabledProviders === 1 ? '' : 's'}.`
   }
 
-  return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} owned by you use “${account.groupLabel}”, which will have no enabled Provider available to you after deletion.`
+  return `${impact.apiKeyCount} key${impact.apiKeyCount === 1 ? '' : 's'} will lose routing in “${account.groupLabel}”.`
 }

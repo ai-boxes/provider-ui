@@ -69,8 +69,8 @@ export function ProviderDetailError({
           </EmptyTitle>
           <EmptyDescription>
             {notFound
-              ? 'This Provider does not exist or is not visible to the current user.'
-              : 'Check the server connection and try again.'}
+              ? 'The provider does not exist or is not visible.'
+              : 'Check the server connection.'}
           </EmptyDescription>
         </EmptyHeader>
         <div className="flex gap-2">

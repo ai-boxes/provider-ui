@@ -64,9 +64,7 @@ function UsageEmpty() {
             <ChartNoAxesColumnIcon />
           </EmptyMedia>
           <EmptyTitle>No usage data recorded</EmptyTitle>
-          <EmptyDescription>
-            Nothing was recorded in this window. Try a longer one.
-          </EmptyDescription>
+          <EmptyDescription>Try a longer time range.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Card>

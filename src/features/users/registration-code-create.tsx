@@ -65,9 +65,7 @@ export function RegistrationCodeCreateDialog() {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Generate invitation code</DialogTitle>
-          <DialogDescription>
-            Create a one-time code that allows one user to register.
-          </DialogDescription>
+          <DialogDescription>One-time registration code.</DialogDescription>
         </DialogHeader>
 
         {code.isError ? (
@@ -116,7 +114,7 @@ export function RegistrationCodeCreateDialog() {
           </Field>
         ) : (
           <p className="text-sm text-muted-foreground">
-            The code expires after 7 days and is only shown here once.
+            Expires in 7 days. Shown once.
           </p>
         )}
 

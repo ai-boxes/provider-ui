@@ -157,9 +157,7 @@ export function ProviderQuotaCard({ accountId }: { accountId: string }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="grid gap-1">
             <CardTitle>Quota</CardTitle>
-            <CardDescription>
-              Current usage and balances reported by the upstream Provider.
-            </CardDescription>
+            <CardDescription>Upstream usage and balances.</CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             {quota.data?.snapshot ? (

@@ -25,7 +25,6 @@ import {
 } from '@/components/ui/dialog'
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -171,9 +170,7 @@ export function ApiKeyCreateDialog({
           <>
             <DialogHeader>
               <DialogTitle>Create API key</DialogTitle>
-              <DialogDescription>
-                Enter your own key or generate one, then save the credential.
-              </DialogDescription>
+              <DialogDescription>Create a client credential.</DialogDescription>
             </DialogHeader>
 
             {requestError ? <CreateError error={requestError} /> : null}
@@ -193,9 +190,6 @@ export function ApiKeyCreateDialog({
                     aria-invalid={Boolean(form.formState.errors.label)}
                     {...form.register('label')}
                   />
-                  <FieldDescription>
-                    Use a name that identifies the client or environment.
-                  </FieldDescription>
                   <FieldError errors={[form.formState.errors.label]} />
                 </Field>
 
@@ -326,10 +320,7 @@ function CreatedApiKeyResult({ label, value }: { label: string; value: string })
           <KeyRoundIcon className="size-5" />
         </div>
         <DialogTitle>{label} is saved</DialogTitle>
-        <DialogDescription>
-          Copy this key for your client. You can view it again from the API key
-          list.
-        </DialogDescription>
+        <DialogDescription>Copy the key to your client.</DialogDescription>
       </DialogHeader>
       <ApiKeySecret value={value} />
       <DialogFooter>

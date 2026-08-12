@@ -181,8 +181,8 @@ export function UsageOverview() {
         title="Usage"
         description={
           overview.data
-            ? `Track requests, tokens, cost, and upstream performance · ${formatUsageRange(overview.data.fromMs, overview.data.toMs)}`
-            : 'Track requests, token consumption, cost, and upstream performance.'
+            ? formatUsageRange(overview.data.fromMs, overview.data.toMs)
+            : 'Requests, tokens, cost, and performance.'
         }
         actions={
           <>

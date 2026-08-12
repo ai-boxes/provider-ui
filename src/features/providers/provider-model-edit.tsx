@@ -97,9 +97,7 @@ export function ProviderModelEditDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Model</DialogTitle>
-          <DialogDescription>
-            Set the alias, routing status, and pricing in USD per 1M tokens.
-          </DialogDescription>
+          <DialogDescription>Update model settings.</DialogDescription>
         </DialogHeader>
 
         {updateModel.isError ? (
@@ -152,9 +150,7 @@ export function ProviderModelEditDialog({
                 placeholder={model.upstreamModel}
                 {...form.register('alias')}
               />
-              <FieldDescription>
-                Empty uses the upstream model ID as the effective model name.
-              </FieldDescription>
+              <FieldDescription>Empty uses the upstream model ID.</FieldDescription>
               <FieldError errors={[form.formState.errors.alias]} />
             </Field>
 
@@ -164,9 +160,7 @@ export function ProviderModelEditDialog({
                   <FieldLabel htmlFor={`model-enabled-${id}`}>
                     Enabled
                   </FieldLabel>
-                  <FieldDescription>
-                    Disabled Models are excluded from routing.
-                  </FieldDescription>
+                  <FieldDescription>Disabled models are not routed.</FieldDescription>
                 </div>
                 <Controller
                   control={form.control}
@@ -221,9 +215,7 @@ export function ProviderModelEditDialog({
                   </div>
                 )}
               />
-              <FieldDescription>
-                Clear every option to leave input capabilities undeclared.
-              </FieldDescription>
+              <FieldDescription>Clear all to leave unspecified.</FieldDescription>
             </FieldSet>
 
             <div className="grid gap-1">

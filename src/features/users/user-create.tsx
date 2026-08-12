@@ -123,9 +123,7 @@ export function UserCreateDialog() {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create user</DialogTitle>
-          <DialogDescription>
-            Create a standard user account that can sign in to this control plane.
-          </DialogDescription>
+          <DialogDescription>Add a user account.</DialogDescription>
         </DialogHeader>
 
         {requestError ? <CreateError error={requestError} /> : null}
@@ -147,7 +145,6 @@ export function UserCreateDialog() {
                 aria-invalid={Boolean(form.formState.errors.username)}
                 {...form.register('username')}
               />
-              <FieldDescription>Use at least 1 character.</FieldDescription>
               <FieldError errors={[form.formState.errors.username]} />
             </Field>
 
@@ -161,7 +158,7 @@ export function UserCreateDialog() {
                 aria-invalid={Boolean(form.formState.errors.password)}
                 {...form.register('password')}
               />
-              <FieldDescription>Use at least 6 characters.</FieldDescription>
+              <FieldDescription>At least 6 characters.</FieldDescription>
               <FieldError errors={[form.formState.errors.password]} />
             </Field>
           </FieldGroup>

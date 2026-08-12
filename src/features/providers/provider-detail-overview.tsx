@@ -37,9 +37,7 @@ export function ProviderOverview({
     <Card>
       <CardHeader className="border-b">
         <CardTitle>Overview</CardTitle>
-        <CardDescription>
-          Connection, access, and runtime settings for this Provider account.
-        </CardDescription>
+        <CardDescription>Connection and access settings.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
         <DetailField label="Provider">

@@ -194,8 +194,7 @@ function OAuthSessionCard({
               : 'Authorization cancelled'}
           </CardTitle>
           <CardDescription>
-            No Provider was created. Start a new authorization session to try
-            again.
+            No provider was created.
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-end">
@@ -213,7 +212,7 @@ function OAuthSessionCard({
           <div>
             <p className="font-medium">Authorization completed</p>
             <p className="text-sm text-muted-foreground">
-              Opening the Provider details…
+              Opening provider…
             </p>
           </div>
           <Spinner className="ml-auto" />
@@ -230,7 +229,7 @@ function OAuthSessionCard({
           <div>
             <p className="font-medium">Creating Provider</p>
             <p className="text-sm text-muted-foreground">
-              Loading models and finishing setup.
+              Finishing setup.
             </p>
           </div>
         </CardContent>
@@ -256,9 +255,7 @@ function OAuthSessionCard({
         </div>
         <CardTitle>{session.label}</CardTitle>
         <CardDescription>
-          Open the {formatOAuthService(session.provider)} authorization page and
-          enter the code below when asked. This page will continue
-          automatically.
+          Open {formatOAuthService(session.provider)} and enter this code.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5">
@@ -267,8 +264,7 @@ function OAuthSessionCard({
             <CircleAlertIcon />
             <AlertTitle>Unable to cancel authorization</AlertTitle>
             <AlertDescription>
-              The session may still be active. Try again or wait for it to
-              finish.
+              Try again or wait for it to finish.
             </AlertDescription>
           </Alert>
         ) : null}

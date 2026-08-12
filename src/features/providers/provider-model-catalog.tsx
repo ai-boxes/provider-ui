@@ -80,9 +80,7 @@ export function ProviderModels({
         <div className="flex items-start justify-between gap-3">
           <div className="grid gap-1">
             <CardTitle>Models</CardTitle>
-            <CardDescription>
-              Models currently discovered for this Provider account.
-            </CardDescription>
+            <CardDescription>Discovered models.</CardDescription>
           </div>
           <div className="flex flex-wrap items-start justify-end gap-2">
             {canManage ? (
@@ -359,7 +357,7 @@ function ModelsError({
         <CircleAlertIcon />
         <AlertTitle>Unable to load models</AlertTitle>
         <AlertDescription>
-          The Provider account loaded, but its model catalog could not be read.
+          The model catalog could not be loaded.
         </AlertDescription>
         <Button
           variant="outline"
@@ -384,9 +382,7 @@ function ModelsEmpty() {
           <BoxIcon />
         </EmptyMedia>
         <EmptyTitle>No models discovered</EmptyTitle>
-        <EmptyDescription>
-          This Provider account does not currently have any stored models.
-        </EmptyDescription>
+        <EmptyDescription>No stored models.</EmptyDescription>
       </EmptyHeader>
     </Empty>
   )

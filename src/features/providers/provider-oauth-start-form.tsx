@@ -41,7 +41,7 @@ export function ProviderOAuthStartForm({
   return (
     <ProviderFormCard
       title="Provider details"
-      description="These settings are applied to the account created after authorization completes."
+      description="Account settings."
       error={startOAuth.error}
       footer={
         <Button

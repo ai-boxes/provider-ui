@@ -60,9 +60,6 @@ export function ProviderBaseFields({
           aria-invalid={Boolean(labelError)}
           {...labelRegistration}
         />
-        <FieldDescription>
-          A recognizable name for this provider account.
-        </FieldDescription>
         <FieldError errors={[labelError]} />
       </Field>
 
@@ -76,9 +73,7 @@ export function ProviderBaseFields({
           aria-invalid={Boolean(groupLabelError)}
           {...groupLabelRegistration}
         />
-        <FieldDescription>
-          API keys select this label to route through matching provider accounts.
-        </FieldDescription>
+        <FieldDescription>Used by API keys for routing.</FieldDescription>
         <FieldError errors={[groupLabelError]} />
       </Field>
 
@@ -94,10 +89,7 @@ export function ProviderBaseFields({
           <NativeSelectOption value="private">Private</NativeSelectOption>
           <NativeSelectOption value="shared">Shared</NativeSelectOption>
         </NativeSelect>
-        <FieldDescription>
-          Private providers are only available to you. Shared providers can be
-          used by other users but remain editable only by their owner.
-        </FieldDescription>
+        <FieldDescription>Shared with all users; editable by the owner.</FieldDescription>
         <FieldError errors={[visibilityError]} />
       </Field>
 
@@ -114,9 +106,7 @@ export function ProviderBaseFields({
           aria-invalid={Boolean(priorityError)}
           {...priorityRegistration}
         />
-        <FieldDescription>
-          Lower numbers are preferred within the same Provider group.
-        </FieldDescription>
+        <FieldDescription>Lower numbers route first.</FieldDescription>
         <FieldError errors={[priorityError]} />
       </Field>
     </>

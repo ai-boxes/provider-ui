@@ -75,7 +75,7 @@ export function ProviderList({ currentUserId }: { currentUserId: string }) {
     <section className="flex flex-1 flex-col gap-6">
       <PageHeader
         title="Providers"
-        description="Connect upstream accounts, review access and health, and keep model availability current."
+        description="Manage upstream accounts and models."
         actions={
           <Button nativeButton={false} render={<Link to="/providers/new" />}>
             <PlusIcon />
@@ -500,10 +500,7 @@ function ProviderListEmpty() {
             <BoxesIcon />
           </EmptyMedia>
           <EmptyTitle>No providers configured</EmptyTitle>
-          <EmptyDescription>
-            Add the first upstream Provider account to make a routing group
-            available.
-          </EmptyDescription>
+          <EmptyDescription>Add a provider to get started.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Card>
