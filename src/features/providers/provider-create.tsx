@@ -12,11 +12,9 @@ import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
-import {
-  CompatibleProviderForm,
-  ProviderJsonImportForm,
-  ProviderOAuthStartForm,
-} from '@/features/providers/provider-create-forms'
+import { CompatibleProviderForm } from '@/features/providers/compatible-provider-form'
+import { ProviderJsonImportForm } from '@/features/providers/provider-json-import-form'
+import { ProviderOAuthStartForm } from '@/features/providers/provider-oauth-start-form'
 import {
   formatOAuthService,
   formatProviderKind,
