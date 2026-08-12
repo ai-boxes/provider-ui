@@ -14,6 +14,7 @@ import { z } from 'zod'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogClose,
@@ -30,6 +31,8 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -42,6 +45,11 @@ import {
   isSafeTokenThreshold,
   MAX_SAFE_TOKEN_THRESHOLD,
 } from '@/features/providers/provider-model-pricing'
+import {
+  commonProviderModelInputModalities,
+  formatProviderModelInputModality,
+  providerModelInputModalitiesForUpdate,
+} from '@/features/providers/provider-model-modalities'
 import { providerKeys } from '@/features/providers/providers-query'
 import type {
   ProviderModel,
@@ -79,6 +87,7 @@ const modelEditSchema = z
   .object({
     alias: z.string().transform((value) => value.trim()),
     enabled: z.boolean(),
+    inputModalities: z.array(z.enum(commonProviderModelInputModalities)),
     input: decimalPriceSchema,
     output: decimalPriceSchema,
     cacheRead: decimalPriceSchema,
@@ -276,6 +285,9 @@ export function ProviderModelEditDialog({
               upstreamModel: model.upstreamModel,
               alias: values.alias || undefined,
               enabled: values.enabled,
+              inputModalities: providerModelInputModalitiesForUpdate(
+                values.inputModalities,
+              ),
               pricingChanged,
               pricing,
             })
@@ -330,6 +342,49 @@ export function ProviderModelEditDialog({
                 />
               </div>
             </Field>
+
+            <FieldSet className="gap-2">
+              <FieldLegend variant="label">Input capabilities</FieldLegend>
+              <Controller
+                control={form.control}
+                name="inputModalities"
+                render={({ field }) => (
+                  <div className="grid grid-cols-2 gap-3 rounded-lg border px-3 py-3 sm:grid-cols-3">
+                    {commonProviderModelInputModalities.map((modality, index) => {
+                      const checkboxId = `model-input-modality-${index}-${id}`
+                      return (
+                        <label
+                          key={modality}
+                          htmlFor={checkboxId}
+                          className="flex min-w-0 items-center gap-2 text-sm"
+                        >
+                          <Checkbox
+                            id={checkboxId}
+                            checked={field.value.includes(modality)}
+                            disabled={updateModel.isPending}
+                            onCheckedChange={(checked) => {
+                              field.onChange(
+                                checked
+                                  ? [...field.value, modality]
+                                  : field.value.filter(
+                                      (selected) => selected !== modality,
+                                    ),
+                              )
+                            }}
+                          />
+                          <span className="break-all" translate="no">
+                            {formatProviderModelInputModality(modality)}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              />
+              <FieldDescription>
+                Clear every option to leave input capabilities undeclared.
+              </FieldDescription>
+            </FieldSet>
 
             <div className="grid gap-1">
               <p className="text-sm font-medium">Pricing</p>
@@ -490,6 +545,7 @@ function modelDefaultValues(model: ProviderModel): ModelEditValues {
   return {
     alias: model.alias ?? '',
     enabled: model.enabled,
+    inputModalities: model.inputModalities ?? [],
     input: model.pricing?.input ?? '',
     output: model.pricing?.output ?? '',
     cacheRead: model.pricing?.cacheRead ?? '',

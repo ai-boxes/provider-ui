@@ -44,6 +44,9 @@ clients directly at core, e.g. `http://127.0.0.1:8317/v1`.
 
 ## Production
 
-The `Dockerfile` builds a static bundle served by nginx; the container also
-reverse-proxies `/api/*` and `/v1/*` to `provider-core` on the Compose network.
-See the repository root `README.md` for the full deployment.
+The `Dockerfile` still builds the standalone UI/nginx image. It expects a core
+container reachable as `provider-core:8317` on the same Docker network and
+reverse-proxies `/api/*` and `/v1/*` to it.
+
+For the recommended single image containing both the UI and `provider-core`,
+see the repository-root `README.md`.

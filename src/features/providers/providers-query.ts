@@ -43,6 +43,9 @@ export function providerQuotaQueryOptions(accountId: string) {
   return queryOptions({
     queryKey: providerKeys.quota(accountId),
     queryFn: () => getProviderQuota(accountId),
+    // Mirrors the backend 30s quota freshness window, so the list and the
+    // detail page share one upstream fetch within that window.
+    staleTime: 30_000,
   })
 }
 

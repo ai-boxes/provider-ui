@@ -59,6 +59,7 @@ import {
   ProviderModelEditDialog,
   ProviderModelRefreshControl,
 } from '@/features/providers/provider-model-management'
+import { formatProviderModelInputModalities } from '@/features/providers/provider-model-modalities'
 import { formatProviderKind } from '@/features/providers/provider-format'
 import {
   ProviderHealthCard,
@@ -408,6 +409,11 @@ function ModelsTable({
                             Alias enabled
                           </span>
                         ) : null}
+                        <span className="text-xs text-muted-foreground">
+                          {formatProviderModelInputModalities(
+                            model.inputModalities,
+                          )}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -453,6 +459,11 @@ function ModelsTable({
                     <code className="truncate font-mono text-xs text-muted-foreground">
                       {model.upstreamModel}
                     </code>
+                    <span className="text-xs text-muted-foreground">
+                      {formatProviderModelInputModalities(
+                        model.inputModalities,
+                      )}
+                    </span>
                   </div>
                   <ModelStatusBadge model={model} />
                 </div>

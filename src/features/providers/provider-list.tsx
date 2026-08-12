@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BoxesIcon,
   CircleAlertIcon,
@@ -39,7 +40,14 @@ import {
 import { ProviderEditDialog } from '@/features/providers/provider-account-management'
 import { formatProviderKind } from '@/features/providers/provider-format'
 import { ProviderQuotaSummary } from '@/features/providers/provider-quota'
-import { providersQueryOptions } from '@/features/providers/providers-query'
+import {
+  syncQuotaCache,
+} from '@/features/providers/provider-quota-cache'
+import { shouldAutoFetchProviderQuota } from '@/features/providers/provider-quota-policy'
+import {
+  providersQueryOptions,
+  providerQuotaQueryOptions,
+} from '@/features/providers/providers-query'
 import type {
   ProviderAccount,
   ProviderAccountWithQuota,
@@ -88,6 +96,26 @@ function ProviderAccounts({
   accounts: ProviderAccountWithQuota[]
   currentUserId: string
 }) {
+  const queryClient = useQueryClient()
+
+  // Auto-check quota for accounts that have none yet, so the list matches the
+  // detail page instead of waiting for a manual click. Shares the same React
+  // Query key and 30s backend freshness window as the detail page, so a fresh
+  // cache is reused rather than re-fetched.
+  useEffect(() => {
+    for (const account of accounts) {
+      if (!shouldAutoFetchProviderQuota(account.quota)) {
+        continue
+      }
+      void queryClient
+        .fetchQuery(providerQuotaQueryOptions(account.id))
+        .then((quota) => syncQuotaCache(queryClient, account.id, quota))
+        .catch(() => {
+          // Keep the manual "Check quota" button as the retry path.
+        })
+    }
+  }, [accounts, queryClient])
+
   return (
     <>
       <Card className="hidden gap-0 py-0 md:flex">

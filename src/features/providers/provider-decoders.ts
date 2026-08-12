@@ -3,6 +3,7 @@ import {
   oauthProviderKinds,
   providerKinds,
 } from '@/features/providers/provider-format'
+import { decodeProviderModelInputModalities } from '@/features/providers/provider-model-modalities'
 import {
   optionalArray,
   optionalEnum,
@@ -302,6 +303,9 @@ function decodeProviderModel(value: unknown, label: string): ProviderModel {
     enabled: requireBoolean(record.enabled, 'model enabled state'),
     available: requireBoolean(record.available, 'model availability'),
     routable: requireBoolean(record.routable, 'model routable state'),
+    inputModalities: decodeProviderModelInputModalities(
+      record.input_modalities,
+    ),
     metadata: optionalRecord(record.metadata, 'model metadata'),
     pricing: decodeProviderModelPricing(record.pricing),
     lastSeenAt: optionalTimestamp(record.last_seen_at, 'model last seen time'),
