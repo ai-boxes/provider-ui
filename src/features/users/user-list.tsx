@@ -86,7 +86,7 @@ function UserCollection({
           <TableHeader>
             <TableRow className="bg-muted/55 hover:bg-muted/55">
               <TableHead className="pl-4">User</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>Permission</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>
@@ -162,7 +162,9 @@ function UserCard({
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t pt-4 text-sm">
         <div className="grid gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Role</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            Permission
+          </span>
           <Badge variant="outline" className="w-fit bg-background">
             {formatUserRole(user.role)}
           </Badge>

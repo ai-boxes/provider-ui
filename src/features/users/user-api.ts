@@ -1,4 +1,7 @@
-import { requestAuthenticatedData } from '@/features/auth/authenticated-request'
+import {
+  requestAuthenticatedData,
+  requestAuthenticatedEmpty,
+} from '@/features/auth/authenticated-request'
 import {
   decodeCreatedRegistrationCode,
   decodeManagedUser,
@@ -84,6 +87,12 @@ export function resetUserPassword(
       }),
     },
   )
+}
+
+export function deleteUser(userId: string): Promise<void> {
+  return requestAuthenticatedEmpty(userEndpoint(userId), {
+    method: 'DELETE',
+  })
 }
 
 function userEndpoint(userId: string): string {

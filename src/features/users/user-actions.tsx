@@ -1,13 +1,6 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  CircleAlertIcon,
-  Loader2Icon,
-  PencilIcon,
-} from 'lucide-react'
+import { CircleAlertIcon, Loader2Icon } from 'lucide-react'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -21,38 +14,16 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { clearAuthSession } from '@/features/auth/auth-session'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import {
-  resetUserPassword,
-  updateUserEnabled,
-} from '@/features/users/user-api'
+import { Switch } from '@/components/ui/switch'
+import { updateUserEnabled } from '@/features/users/user-api'
+import { UserEditDialog } from '@/features/users/user-edit'
+import { UserDeleteDialog } from '@/features/users/user-delete'
 import type { ManagedUser } from '@/features/users/user-types'
-import { UserRoleEditDialog } from '@/features/users/user-role-edit'
 import { userKeys } from '@/features/users/users-query'
 import { apiErrorMessage } from '@/lib/api/error'
 import { replaceListItem } from '@/lib/api/query-cache'
@@ -184,159 +155,10 @@ export function UserActions({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <UserRoleEditDialog user={user} isSelf={user.id === currentUserId} />
       <UserEditDialog user={user} isSelf={user.id === currentUserId} />
+      <UserDeleteDialog user={user} isSelf={user.id === currentUserId} />
     </div>
   )
-}
-
-function UserEditDialog({
-  user,
-  isSelf,
-}: {
-  user: ManagedUser
-  isSelf: boolean
-}) {
-  const [open, setOpen] = useState(false)
-  const [requestError, setRequestError] = useState<unknown>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const queryClient = useQueryClient()
-  const form = useForm<EditUserValues>({
-    resolver: zodResolver(editUserSchema),
-    defaultValues,
-  })
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (submitting) {
-      return
-    }
-
-    setOpen(nextOpen)
-    form.reset(defaultValues)
-    setRequestError(null)
-  }
-
-  async function submit(values: EditUserValues) {
-    setSubmitting(true)
-    setRequestError(null)
-
-    try {
-      const updated = await resetUserPassword({
-        userId: user.id,
-        password: values.password,
-      })
-      replaceListItem(queryClient, userKeys.all, updated)
-      form.reset(defaultValues)
-      setOpen(false)
-      if (isSelf) {
-        clearAuthSession()
-      }
-    } catch (error) {
-      setRequestError(error)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        <PencilIcon />
-        Edit
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit {user.username}</DialogTitle>
-          <DialogDescription>
-            {isSelf
-              ? 'Changing your password revokes existing sessions. You will be signed out immediately and can sign in with the new password.'
-              : 'Changing this password immediately revokes the user’s existing sessions.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        {requestError ? (
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertTitle>Unable to update user</AlertTitle>
-            <AlertDescription>
-              {errorMessage(
-                requestError,
-                'The user could not be updated. Try again.',
-              )}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        <form
-          id={`user-edit-${user.id}`}
-          onSubmit={form.handleSubmit((values) => void submit(values))}
-        >
-          <FieldGroup>
-            <Field data-invalid={Boolean(form.formState.errors.password)}>
-              <FieldLabel htmlFor={`user-edit-password-${user.id}`}>
-                New password
-              </FieldLabel>
-              <Input
-                id={`user-edit-password-${user.id}`}
-                type="password"
-                autoComplete="new-password"
-                disabled={submitting}
-                aria-invalid={Boolean(form.formState.errors.password)}
-                {...form.register('password')}
-              />
-              <FieldDescription>Use at least 6 characters.</FieldDescription>
-              <FieldError errors={[form.formState.errors.password]} />
-            </Field>
-          </FieldGroup>
-        </form>
-
-        <DialogFooter>
-          <DialogClose
-            disabled={submitting}
-            render={<Button variant="outline" disabled={submitting} />}
-          >
-            Cancel
-          </DialogClose>
-          <Button
-            type="submit"
-            form={`user-edit-${user.id}`}
-            disabled={submitting}
-          >
-            {submitting ? <Loader2Icon className="animate-spin" /> : null}
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-const editUserSchema = z
-  .object({
-    password: z.string(),
-  })
-  .superRefine((values, context) => {
-    if ([...values.password].length < 6) {
-      context.addIssue({
-        code: 'custom',
-        path: ['password'],
-        message: 'Password must contain at least 6 characters.',
-      })
-    }
-
-    if (new TextEncoder().encode(values.password).length > 1024) {
-      context.addIssue({
-        code: 'custom',
-        path: ['password'],
-        message: 'Password must not exceed 1024 bytes.',
-      })
-    }
-  })
-
-type EditUserValues = z.infer<typeof editUserSchema>
-
-const defaultValues: EditUserValues = {
-  password: '',
 }
 
 const statusMessages = {
