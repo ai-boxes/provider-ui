@@ -1,8 +1,8 @@
 # provider-ui
 
 Management UI for the self-hosted provider gateway. It talks to `provider-core`
-through the same-origin management API and, in production, serves the
-Codex/Claude-compatible surface as an nginx reverse proxy.
+through the same-origin management API. The production image only serves the
+compiled static frontend; API routing belongs to the external gateway.
 
 Stack: React 19 + TypeScript + Vite 8 + Tailwind CSS 4, with feature modules
 under `src/features/`.
@@ -44,9 +44,9 @@ clients directly at core, e.g. `http://127.0.0.1:8317/v1`.
 
 ## Production
 
-The `Dockerfile` still builds the standalone UI/nginx image. It expects a core
-container reachable as `provider-core:8317` on the same Docker network and
-reverse-proxies `/api/*` and `/v1/*` to it.
+`npm run build` generates the production frontend in `dist/`. Deploy that
+directory with a static file server that supports SPA fallback.
 
-For the recommended single image containing both the UI and `provider-core`,
-see the repository-root `README.md`.
+API routing belongs to the external gateway or ingress. The frontend expects
+the same public origin to route `/api/*` to `provider-core`; `/v1/*` can be
+routed there separately for the compatible API surface.
