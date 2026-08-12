@@ -77,6 +77,10 @@ const accountEditBaseSchema = z.object({
   visibility: z.enum(['private', 'shared']),
   baseUrl: z.string().trim(),
   apiKey: z.string(),
+  priority: z
+    .number({ error: 'Priority must be a non-negative integer.' })
+    .int('Priority must be a non-negative integer.')
+    .nonnegative('Priority must be a non-negative integer.'),
 })
 
 type AccountEditValues = z.infer<typeof accountEditBaseSchema>
@@ -337,6 +341,7 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
               label: values.label,
               groupLabel: values.groupLabel,
               visibility: values.visibility,
+              priority: values.priority,
               baseUrl: isOAuthProvider(account.provider)
                 ? undefined
                 : values.baseUrl,
@@ -393,6 +398,25 @@ export function ProviderEditDialog({ account }: { account: ProviderAccount }) {
                 only by their owner.
               </FieldDescription>
               <FieldError errors={[form.formState.errors.visibility]} />
+            </Field>
+
+            <Field data-invalid={Boolean(form.formState.errors.priority)}>
+              <FieldLabel htmlFor={fieldId('priority')}>Priority</FieldLabel>
+              <Input
+                id={fieldId('priority')}
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                autoComplete="off"
+                disabled={updateAccount.isPending}
+                aria-invalid={Boolean(form.formState.errors.priority)}
+                {...form.register('priority', { valueAsNumber: true })}
+              />
+              <FieldDescription>
+                Lower numbers are preferred within the same Provider group.
+              </FieldDescription>
+              <FieldError errors={[form.formState.errors.priority]} />
             </Field>
 
             {!isOAuthProvider(account.provider) ? (
@@ -579,6 +603,7 @@ function editDefaultValues(account: ProviderAccount): AccountEditValues {
     visibility: account.visibility,
     baseUrl: account.baseUrl ?? '',
     apiKey: '',
+    priority: account.priority,
   }
 }
 

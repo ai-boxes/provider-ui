@@ -57,6 +57,10 @@ const providerBaseSchema = z.object({
       'Provider group must be 64 characters or fewer.',
     ),
   visibility: z.enum(['private', 'shared']),
+  priority: z
+    .number({ error: 'Priority must be a non-negative integer.' })
+    .int('Priority must be a non-negative integer.')
+    .nonnegative('Priority must be a non-negative integer.'),
 })
 
 const compatibleProviderSchema = providerBaseSchema.extend({
@@ -106,6 +110,7 @@ const defaultBaseValues: ProviderBaseValues = {
   label: '',
   groupLabel: '',
   visibility: 'private',
+  priority: 0,
 }
 
 export function ProviderOAuthStartForm({
@@ -156,9 +161,13 @@ export function ProviderOAuthStartForm({
             labelRegistration={form.register('label')}
             groupLabelRegistration={form.register('groupLabel')}
             visibilityRegistration={form.register('visibility')}
+            priorityRegistration={form.register('priority', {
+              valueAsNumber: true,
+            })}
             labelError={form.formState.errors.label}
             groupLabelError={form.formState.errors.groupLabel}
             visibilityError={form.formState.errors.visibility}
+            priorityError={form.formState.errors.priority}
           />
         </FieldGroup>
       </form>
@@ -232,6 +241,7 @@ export function ProviderJsonImportForm({
             label: values.label,
             groupLabel: values.groupLabel,
             visibility: values.visibility,
+            priority: values.priority,
             credentialJson: JSON.parse(values.credentialJson) as Record<
               string,
               unknown
@@ -245,9 +255,13 @@ export function ProviderJsonImportForm({
             labelRegistration={form.register('label')}
             groupLabelRegistration={form.register('groupLabel')}
             visibilityRegistration={form.register('visibility')}
+            priorityRegistration={form.register('priority', {
+              valueAsNumber: true,
+            })}
             labelError={form.formState.errors.label}
             groupLabelError={form.formState.errors.groupLabel}
             visibilityError={form.formState.errors.visibility}
+            priorityError={form.formState.errors.priority}
           />
 
           <Field data-invalid={Boolean(fileError)}>
@@ -356,6 +370,7 @@ export function CompatibleProviderForm({
             label: values.label,
             groupLabel: values.groupLabel,
             visibility: values.visibility,
+            priority: values.priority,
             baseUrl: values.baseUrl,
             apiKey: values.apiKey,
           })
@@ -367,9 +382,13 @@ export function CompatibleProviderForm({
             labelRegistration={form.register('label')}
             groupLabelRegistration={form.register('groupLabel')}
             visibilityRegistration={form.register('visibility')}
+            priorityRegistration={form.register('priority', {
+              valueAsNumber: true,
+            })}
             labelError={form.formState.errors.label}
             groupLabelError={form.formState.errors.groupLabel}
             visibilityError={form.formState.errors.visibility}
+            priorityError={form.formState.errors.priority}
           />
 
           <Field data-invalid={Boolean(form.formState.errors.baseUrl)}>
@@ -417,17 +436,21 @@ function ProviderBaseFields({
   labelRegistration,
   groupLabelRegistration,
   visibilityRegistration,
+  priorityRegistration,
   labelError,
   groupLabelError,
   visibilityError,
+  priorityError,
 }: {
   disabled: boolean
   labelRegistration: UseFormRegisterReturn<'label'>
   groupLabelRegistration: UseFormRegisterReturn<'groupLabel'>
   visibilityRegistration: UseFormRegisterReturn<'visibility'>
+  priorityRegistration: UseFormRegisterReturn<'priority'>
   labelError?: ReactHookFormFieldError
   groupLabelError?: ReactHookFormFieldError
   visibilityError?: ReactHookFormFieldError
+  priorityError?: ReactHookFormFieldError
 }) {
   return (
     <>
@@ -480,6 +503,25 @@ function ProviderBaseFields({
           used by other users but remain editable only by their owner.
         </FieldDescription>
         <FieldError errors={[visibilityError]} />
+      </Field>
+
+      <Field data-invalid={Boolean(priorityError)}>
+        <FieldLabel htmlFor="provider-priority">Priority</FieldLabel>
+        <Input
+          id="provider-priority"
+          type="number"
+          min={0}
+          step={1}
+          inputMode="numeric"
+          autoComplete="off"
+          disabled={disabled}
+          aria-invalid={Boolean(priorityError)}
+          {...priorityRegistration}
+        />
+        <FieldDescription>
+          Lower numbers are preferred within the same Provider group.
+        </FieldDescription>
+        <FieldError errors={[priorityError]} />
       </Field>
     </>
   )

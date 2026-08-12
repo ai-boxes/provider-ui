@@ -24,6 +24,7 @@ export type ProviderAccount = {
   provider: ProviderKind
   label: string
   groupLabel: string
+  priority: number
   baseUrl: string | null
   credentialKind: ProviderCredentialKind
   enabled: boolean
@@ -206,6 +207,7 @@ export type ProviderOAuthSession = {
 export type CreateProviderBaseInput = {
   label: string
   groupLabel: string
+  priority: number
   visibility: ProviderVisibility
 }
 
@@ -229,6 +231,7 @@ export type UpdateProviderAccountInput = {
   accountId: string
   label: string
   visibility: ProviderVisibility
+  priority: number
   baseUrl?: string
   apiKey?: string
 }

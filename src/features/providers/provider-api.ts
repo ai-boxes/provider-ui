@@ -12,6 +12,12 @@ import {
   decodeProviderHealth,
   decodeProviderQuota,
 } from '@/features/providers/provider-decoders'
+import {
+  createCompatibleProviderBody,
+  importOAuthProviderBody,
+  startProviderOAuthBody,
+  updateProviderAccountBody,
+} from '@/features/providers/provider-payload'
 import type {
   CreateCompatibleProviderInput,
   CreatedProviderAccount,
@@ -85,15 +91,7 @@ export function createCompatibleProvider(
     {
       method: 'POST',
       headers: jsonHeaders,
-      body: JSON.stringify({
-        method: 'direct',
-        provider: input.provider,
-        label: input.label,
-        group_label: input.groupLabel,
-        base_url: input.baseUrl,
-        api_key: input.apiKey,
-        visibility: input.visibility,
-      }),
+      body: JSON.stringify(createCompatibleProviderBody(input)),
     },
   )
 }
@@ -107,14 +105,7 @@ export function importOAuthProvider(
     {
       method: 'POST',
       headers: jsonHeaders,
-      body: JSON.stringify({
-        method: 'credential_json',
-        provider: input.provider,
-        label: input.label,
-        group_label: input.groupLabel,
-        credential_json: input.credentialJson,
-        visibility: input.visibility,
-      }),
+      body: JSON.stringify(importOAuthProviderBody(input)),
     },
   )
 }
@@ -128,12 +119,7 @@ export function startProviderOAuth(
     {
       method: 'POST',
       headers: jsonHeaders,
-      body: JSON.stringify({
-        provider: input.provider,
-        label: input.label,
-        group_label: input.groupLabel,
-        visibility: input.visibility,
-      }),
+      body: JSON.stringify(startProviderOAuthBody(input)),
     },
   )
 }
@@ -166,15 +152,7 @@ export function updateProviderAccount(
     {
       method: 'PATCH',
       headers: jsonHeaders,
-      body: JSON.stringify({
-        label: input.label,
-        group_label: input.groupLabel,
-        visibility: input.visibility,
-        base_url: input.baseUrl,
-        ...(input.apiKey?.trim()
-          ? { api_key: input.apiKey.trim() }
-          : {}),
-      }),
+      body: JSON.stringify(updateProviderAccountBody(input)),
     },
   )
 }

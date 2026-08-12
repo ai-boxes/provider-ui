@@ -232,6 +232,9 @@ function ProviderOverview({
             {formatCredentialKind(account.credentialKind)}
           </span>
         </DetailField>
+        <DetailField label="Priority">
+          <span className="tabular-nums">{account.priority}</span>
+        </DetailField>
         <DetailField label="Enabled">
           {ownedByCurrentUser ? (
             <ProviderEnabledControl account={account} />
