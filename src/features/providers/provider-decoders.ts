@@ -268,6 +268,7 @@ function decodeProviderAccountRecord(
     provider,
     label: requireNonEmptyString(record.label, 'provider label'),
     groupLabel: requireNonEmptyString(record.group_label, 'provider group label'),
+    priority: requireNonNegativeInteger(record.priority, 'provider priority'),
     baseUrl: decodeBaseUrl(record.config, provider),
     credentialKind: requireEnum(
       record.credential_kind,

@@ -37,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ProviderEditDialog } from '@/features/providers/provider-account-management'
+import { ProviderEditDialog } from '@/features/providers/provider-account-edit'
 import { formatProviderKind } from '@/features/providers/provider-format'
 import { ProviderQuotaSummary } from '@/features/providers/provider-quota'
 import {
@@ -125,6 +125,7 @@ function ProviderAccounts({
               <TableHead className="pl-4">Provider</TableHead>
               <TableHead>Access</TableHead>
               <TableHead>Credential</TableHead>
+              <TableHead>Priority</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="min-w-48 pr-4">Quota</TableHead>
               <TableHead className="pr-4 text-right">Action</TableHead>
@@ -200,6 +201,7 @@ function ProviderTableRow({
       <TableCell>
         <CredentialSummary credentialKind={account.credentialKind} />
       </TableCell>
+      <TableCell className="tabular-nums">{account.priority}</TableCell>
       <TableCell>
         <ProviderStatus account={account} />
       </TableCell>
@@ -256,6 +258,11 @@ function ProviderCard({
         </MobileField>
         <MobileField label="Credential">
           <CredentialSummary credentialKind={account.credentialKind} />
+        </MobileField>
+        <MobileField label="Priority">
+          <span className="tabular-nums text-foreground">
+            {account.priority}
+          </span>
         </MobileField>
         <MobileField label="Status">
           <ProviderStatus account={account} />
@@ -400,15 +407,15 @@ function ProviderListLoading() {
   return (
     <>
       <Card className="hidden gap-0 py-0 md:flex">
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.4fr_auto] gap-4 border-b bg-muted/35 px-4 py-3">
-          {Array.from({ length: 6 }, (_, index) => (
+        <div className="grid grid-cols-[2fr_1fr_1fr_0.7fr_1fr_1.4fr_auto] gap-4 border-b bg-muted/35 px-4 py-3">
+          {Array.from({ length: 7 }, (_, index) => (
             <Skeleton key={index} className="h-4 w-20" />
           ))}
         </div>
         {Array.from({ length: 4 }, (_, index) => (
           <div
             key={index}
-            className="grid grid-cols-[2fr_1fr_1fr_1fr_1.4fr_auto] items-center gap-4 border-b px-4 py-3.5 last:border-b-0"
+            className="grid grid-cols-[2fr_1fr_1fr_0.7fr_1fr_1.4fr_auto] items-center gap-4 border-b px-4 py-3.5 last:border-b-0"
           >
             <div className="flex items-center gap-3">
               <Skeleton className="size-9" />
@@ -419,6 +426,7 @@ function ProviderListLoading() {
             </div>
             <Skeleton className="h-8 w-24" />
             <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-8" />
             <Skeleton className="h-5 w-24 rounded-full" />
             <div className="grid gap-2">
               <Skeleton className="h-4 w-28" />
