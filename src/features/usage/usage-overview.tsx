@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/layout/page-header'
+import { TimeRangeSelector } from '@/components/filters/time-range-selector'
 import { Button } from '@/components/ui/button'
 import { apiKeysQueryOptions } from '@/features/api-keys/api-keys-query'
 import { formatUsageRange } from '@/features/usage/usage-format'
@@ -25,25 +26,29 @@ import {
   UsageOverviewLoading,
   UsageSummary,
 } from '@/features/usage/usage-summary'
-import type { UsageWindowId } from '@/features/usage/usage-types'
 import {
-  currentUsageRange,
-  defaultUsageWindow,
-  parseUsageWindow,
-  usageWindows,
-} from '@/features/usage/usage-window'
+  applyTimeRangeParams,
+  currentTimeRange,
+  rememberSharedTimeRangeSelection,
+  resolveTimeRangeSelection,
+  type TimeRangeSelection,
+} from '@/features/time-range/time-range'
 
 export function UsageOverview() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const windowId = parseUsageWindow(searchParams.get('window'))
+  const searchParamsKey = searchParams.toString()
+  const timeRange = useMemo(
+    () => resolveTimeRangeSelection(new URLSearchParams(searchParamsKey)),
+    [searchParamsKey],
+  )
   const apiKeyId = searchParams.get('key')
   const modelFilter = searchParams.get('model') ?? ''
   const groupFilter = searchParams.get('group') ?? ''
   const [rangeRevision, setRangeRevision] = useState(0)
   const range = useMemo(() => {
     void rangeRevision
-    return currentUsageRange(windowId)
-  }, [windowId, rangeRevision])
+    return currentTimeRange(timeRange)
+  }, [rangeRevision, timeRange])
   const listFilters: UsageFilterState = {
     apiKeyId: apiKeyId && apiKeyId.trim() ? apiKeyId : null,
     model: modelFilter.trim() || null,
@@ -64,6 +69,10 @@ export function UsageOverview() {
   )
 
   useEffect(() => {
+    rememberSharedTimeRangeSelection(timeRange)
+  }, [timeRange])
+
+  useEffect(() => {
     setPageCursors([null])
     setPageIndex(0)
   }, [range.fromMs, range.toMs, listFilters.apiKeyId, modelFilter, groupFilter])
@@ -74,13 +83,10 @@ export function UsageOverview() {
     setSearchParams(params, { replace: true })
   }
 
-  function selectWindow(next: UsageWindowId) {
+  function selectTimeRange(next: TimeRangeSelection) {
+    rememberSharedTimeRangeSelection(next)
     patchParams((params) => {
-      if (next === defaultUsageWindow) {
-        params.delete('window')
-      } else {
-        params.set('window', next)
-      }
+      applyTimeRangeParams(params, next)
     })
   }
 
@@ -186,20 +192,26 @@ export function UsageOverview() {
         }
         actions={
           <>
-          <UsageWindowSelector value={windowId} onSelect={selectWindow} />
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={isFetching}
-            aria-label="Refresh usage"
-            title="Refresh usage"
-            onClick={() => {
-              setRangeRevision((current) => current + 1)
-              void apiKeys.refetch()
-            }}
-          >
-            <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} />
-          </Button>
+            <TimeRangeSelector value={timeRange} onChange={selectTimeRange} />
+            <Button
+              variant="outline"
+              size="icon-sm"
+              disabled={isFetching}
+              aria-label="Refresh usage"
+              title="Refresh usage"
+              onClick={() => {
+                setRangeRevision((current) => current + 1)
+                if (timeRange.kind === 'custom') {
+                  void Promise.all([
+                    filterOptions.refetch(),
+                    overview.refetch(),
+                    requests.refetch(),
+                  ])
+                }
+              }}
+            >
+              <RefreshCwIcon className={isFetching ? 'animate-spin' : undefined} />
+            </Button>
           </>
         }
       />
@@ -225,35 +237,6 @@ export function UsageOverview() {
         </UsageSection>
       ) : null}
     </section>
-  )
-}
-function UsageWindowSelector({
-  value,
-  onSelect,
-}: {
-  value: UsageWindowId
-  onSelect: (next: UsageWindowId) => void
-}) {
-  return (
-    <div
-      role="group"
-      aria-label="Time window"
-      className="flex items-center gap-1 rounded-xl border border-border/80 bg-card p-1 shadow-xs"
-    >
-      {usageWindows.map((window) => (
-        <Button
-          key={window.id}
-          size="sm"
-          variant={window.id === value ? 'secondary' : 'ghost'}
-          aria-pressed={window.id === value}
-          title={window.label}
-          className="px-3 text-xs"
-          onClick={() => onSelect(window.id)}
-        >
-          {window.short}
-        </Button>
-      ))}
-    </div>
   )
 }
 

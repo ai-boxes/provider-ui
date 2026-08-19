@@ -6,6 +6,7 @@ import { authRestoreFailureStatus } from '../src/features/auth/auth-restore-poli
 import {
   canAccessSuperAdminRoutes,
   homePathForRole,
+  shouldClearUserScopedQueries,
 } from '../src/features/auth/auth-route-policy.ts'
 
 test('session restore treats only an explicit 401 as anonymous', () => {
@@ -14,8 +15,16 @@ test('session restore treats only an explicit 401 as anonymous', () => {
   assert.equal(authRestoreFailureStatus(new TypeError('offline')), 'recovery_error')
 })
 
+test('initial session restore does not clear queries mounted for the restored user', () => {
+  assert.equal(shouldClearUserScopedQueries(undefined, null), false)
+  assert.equal(shouldClearUserScopedQueries(null, 'user-1'), false)
+  assert.equal(shouldClearUserScopedQueries('user-1', 'user-1'), false)
+  assert.equal(shouldClearUserScopedQueries('user-1', null), true)
+  assert.equal(shouldClearUserScopedQueries('user-1', 'user-2'), true)
+})
+
 test('role policy keeps ordinary users out of management routes', () => {
-  assert.equal(homePathForRole('super_admin'), '/providers')
+  assert.equal(homePathForRole('super_admin'), '/dashboard')
   assert.equal(homePathForRole('user'), '/api-keys')
   assert.equal(canAccessSuperAdminRoutes('super_admin'), true)
   assert.equal(canAccessSuperAdminRoutes('user'), false)

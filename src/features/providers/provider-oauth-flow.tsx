@@ -35,10 +35,14 @@ import { cn } from '@/lib/utils'
 export function ProviderOAuthFlow({
   sessionId,
   provider,
+  mode = 'create',
+  restartPending = false,
   onRestart,
 }: {
   sessionId: string
   provider?: OAuthProviderKind
+  mode?: 'create' | 'reauth'
+  restartPending?: boolean
   onRestart: (provider?: OAuthProviderKind) => void
 }) {
   const navigate = useNavigate()
@@ -70,6 +74,15 @@ export function ProviderOAuthFlow({
       queryKey: providerKeys.all,
       exact: true,
     })
+    void queryClient.invalidateQueries({
+      queryKey: providerKeys.detail(session.data.accountId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: providerKeys.models(session.data.accountId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: providerKeys.quota(session.data.accountId),
+    })
     navigate(
       `/providers/${encodeURIComponent(session.data.accountId)}`,
       { replace: true },
@@ -77,6 +90,7 @@ export function ProviderOAuthFlow({
   }, [navigate, queryClient, session.data])
 
   const sessionProvider = session.data?.provider ?? provider
+  const restarting = startingOver || restartPending
 
   async function startOver() {
     setStartOverError(null)
@@ -110,7 +124,7 @@ export function ProviderOAuthFlow({
           <OAuthSessionError
             error={session.error}
             startOverError={startOverError}
-            startingOver={startingOver}
+            startingOver={restarting}
             onRetry={() => void session.refetch()}
             onStartOver={() => void startOver()}
           />
@@ -119,6 +133,7 @@ export function ProviderOAuthFlow({
           <OAuthSessionStatus
             session={session.data}
             cancelError={cancelSession.error}
+            mode={mode}
           />
         ) : null}
       </ProviderCreateBody>
@@ -127,6 +142,7 @@ export function ProviderOAuthFlow({
         <OAuthSessionActions
           session={session.data}
           cancelling={cancelSession.isPending}
+          restarting={restarting}
           onCancel={() => cancelSession.mutate()}
           onStartOver={() => void startOver()}
         />
@@ -138,10 +154,14 @@ export function ProviderOAuthFlow({
 function OAuthSessionStatus({
   session,
   cancelError,
+  mode,
 }: {
   session: ProviderOAuthSession
   cancelError: unknown
+  mode: 'create' | 'reauth'
 }) {
+  const reauthenticating = mode === 'reauth'
+
   if (session.status === 'failed' || session.status === 'cancelled') {
     return (
       <div className="flex items-start gap-3">
@@ -154,7 +174,11 @@ function OAuthSessionStatus({
               ? 'Authorization failed'
               : 'Authorization cancelled'}
           </p>
-          <p className="text-muted-foreground">No provider was created.</p>
+          <p className="text-muted-foreground">
+            {reauthenticating
+              ? 'The existing credential was not changed.'
+              : 'No provider was created.'}
+          </p>
         </div>
       </div>
     )
@@ -180,8 +204,12 @@ function OAuthSessionStatus({
       <div className="flex items-center gap-3">
         <Spinner className="size-5 shrink-0" />
         <div className="grid gap-1">
-          <p className="font-medium">Creating Provider</p>
-          <p className="text-muted-foreground">Finishing setup.</p>
+          <p className="font-medium">
+            {reauthenticating ? 'Updating Provider credential' : 'Creating Provider'}
+          </p>
+          <p className="text-muted-foreground">
+            {reauthenticating ? 'Applying the new credential.' : 'Finishing setup.'}
+          </p>
         </div>
       </div>
     )
@@ -233,18 +261,23 @@ function OAuthSessionStatus({
 function OAuthSessionActions({
   session,
   cancelling,
+  restarting,
   onCancel,
   onStartOver,
 }: {
   session: ProviderOAuthSession
   cancelling: boolean
+  restarting: boolean
   onCancel: () => void
   onStartOver: () => void
 }) {
   if (session.status === 'failed' || session.status === 'cancelled') {
     return (
       <ProviderCreateFooter>
-        <Button onClick={onStartOver}>Start again</Button>
+        <Button onClick={onStartOver} disabled={restarting}>
+          {restarting ? <Loader2Icon className="animate-spin" /> : null}
+          {restarting ? 'Starting again…' : 'Start again'}
+        </Button>
       </ProviderCreateFooter>
     )
   }

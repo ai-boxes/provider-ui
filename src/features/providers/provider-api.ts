@@ -124,6 +124,16 @@ export function startProviderOAuth(
   )
 }
 
+export function startProviderReauth(
+  accountId: string,
+): Promise<ProviderOAuthSession> {
+  return requestAuthenticatedData(
+    `${providerEndpoint(accountId)}/reauth`,
+    decodeProviderOAuthSession,
+    { method: 'POST' },
+  )
+}
+
 export function getProviderOAuthSession(
   sessionId: string,
 ): Promise<ProviderOAuthSession> {

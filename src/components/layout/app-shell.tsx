@@ -5,6 +5,7 @@ import {
   ChartNoAxesColumnIcon,
   ChevronsUpDownIcon,
   KeyRoundIcon,
+  LayoutDashboardIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
@@ -68,6 +69,12 @@ const resizeCursorClasses = {
 } as const
 
 const primaryNavigation = [
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboardIcon,
+    superAdminOnly: true,
+  },
   {
     label: 'Providers',
     href: '/providers',
@@ -195,7 +202,7 @@ function AppSidebar({
               tooltip="Provider"
               render={
                 <NavLink
-                  to={user.role === 'super_admin' ? '/providers' : '/api-keys'}
+                  to={user.role === 'super_admin' ? '/dashboard' : '/api-keys'}
                   onClick={closeMobileSidebar}
                 />
               }

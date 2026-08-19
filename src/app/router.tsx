@@ -49,6 +49,15 @@ export const router = createBrowserRouter([
             Component: SuperAdminRouteBoundary,
             children: [
               {
+                path: '/dashboard',
+                lazy: async () => {
+                  const { DashboardPage } = await import(
+                    '@/routes/dashboard-page'
+                  )
+                  return { Component: DashboardPage }
+                },
+              },
+              {
                 path: '/providers',
                 lazy: async () => {
                   const { ProvidersPage } = await import(

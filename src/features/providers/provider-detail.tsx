@@ -21,12 +21,16 @@ import {
 import { ProviderHealthCard } from '@/features/providers/provider-health'
 import { ProviderModels } from '@/features/providers/provider-model-catalog'
 import { ProviderQuotaCard } from '@/features/providers/provider-quota'
+import { ProviderReauthDialog } from '@/features/providers/provider-reauth-dialog'
 import {
   providerHealthQueryOptions,
   providerModelsQueryOptions,
   providerQueryOptions,
 } from '@/features/providers/providers-query'
-import { formatProviderKind } from '@/features/providers/provider-format'
+import {
+  formatProviderKind,
+  isOAuthProvider,
+} from '@/features/providers/provider-format'
 
 export function ProviderDetail({
   accountId,
@@ -114,8 +118,11 @@ export function ProviderDetail({
           <CircleAlertIcon />
           <AlertTitle>Reauthentication required</AlertTitle>
           <AlertDescription>
-            This Provider credential is no longer valid. Update or replace its
-            credential before routing traffic through this account.
+            {ownedByCurrentUser && isOAuthProvider(account.data.provider) ? (
+              <ProviderReauthDialog account={account.data} />
+            ) : (
+              'This Provider credential is no longer valid. The account owner must reauthenticate before routing traffic through it.'
+            )}
           </AlertDescription>
         </Alert>
       ) : null}

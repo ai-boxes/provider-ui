@@ -4,6 +4,7 @@ import { useEffect, useRef, type PropsWithChildren } from 'react'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/features/auth/auth-provider'
+import { shouldClearUserScopedQueries } from '@/features/auth/auth-route-policy'
 import { setupStatusQueryKey } from '@/features/auth/setup-status-query'
 import type { AuthState } from '@/features/auth/auth-types'
 import { useAuthState } from '@/features/auth/use-auth-state'
@@ -37,10 +38,7 @@ function QueryCacheSessionBoundary({ children }: PropsWithChildren) {
   const previousUserId = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
-    if (
-      previousUserId.current !== undefined &&
-      previousUserId.current !== userId
-    ) {
+    if (shouldClearUserScopedQueries(previousUserId.current, userId)) {
       queryClient.removeQueries({
         predicate: (query) => !isSetupStatusQuery(query.queryKey),
       })

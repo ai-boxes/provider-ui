@@ -1,5 +1,3 @@
-export type UsageWindowId = '5h' | '24h' | '7d' | '30d' | '90d'
-
 export type UsageTokenTotals = {
   effectiveInput: number
   cacheReadInput: number
