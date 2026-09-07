@@ -16,7 +16,9 @@ export function ProviderQuotaEstimate({ quota }: { quota: ProviderQuota }) {
         {formatUsageCost(estimate.estimatedLimitCostUsd)}
       </span>
       <span className="text-xs text-muted-foreground">
-        Previous {quotaEstimatePeriodLabel(estimate.periodKind, estimate.durationSeconds)}
+        {estimate.observedUsedPercent >= 100 ? 'Current' : 'Previous'}{' '}
+        {quotaEstimatePeriodLabel(estimate.periodKind, estimate.durationSeconds)}
+        {estimate.observedUsedPercent >= 100 ? ' · fully used' : ''}
       </span>
     </div>
   )
