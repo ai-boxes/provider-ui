@@ -123,6 +123,7 @@ export type ProviderQuotaEstimate = {
   periodKind: ProviderQuotaPeriodKind
   durationSeconds: number | null
   windowStartMs: number
+  samplingIncomplete: boolean
   windowEndMs: number
   observedAtMs: number
   observedUsedPercent: number

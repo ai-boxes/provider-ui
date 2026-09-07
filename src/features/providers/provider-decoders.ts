@@ -448,6 +448,7 @@ function decodeProviderQuotaEstimate(value: unknown): ProviderQuotaEstimate {
         ? null
         : requirePositiveInteger(record.duration_seconds, 'estimate duration'),
     windowStartMs: requireTimestamp(record.window_start_ms, 'estimate window start'),
+    samplingIncomplete: requireBoolean(record.sampling_incomplete, 'estimate sampling coverage'),
     windowEndMs: requireTimestamp(record.window_end_ms, 'estimate window end'),
     observedAtMs: requireTimestamp(record.observed_at_ms, 'estimate observation time'),
     observedUsedPercent,

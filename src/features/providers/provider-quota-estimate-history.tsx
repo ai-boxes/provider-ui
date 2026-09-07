@@ -54,7 +54,7 @@ export function ProviderQuotaEstimateHistoryCard({
       <CardHeader className="border-b">
         <CardTitle>Estimated quota limits</CardTitle>
         <CardDescription>
-          Catalog-cost equivalents inferred from completed upstream quota windows over the last 3 months.
+          Catalog-cost equivalents inferred from ended or fully used upstream quota windows over the last 3 months.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -68,9 +68,9 @@ export function ProviderQuotaEstimateHistoryCard({
           <div className="grid min-h-48 place-items-center rounded-xl border border-dashed text-center">
             <div className="grid max-w-md justify-items-center gap-2 px-6 py-10">
               <ActivityIcon className="size-5 text-muted-foreground" />
-              <p className="text-sm font-medium">No completed quota windows yet</p>
+              <p className="text-sm font-medium">No quota estimates yet</p>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                History starts with newly collected observations and appears after a reported quota window completes.
+                History appears when a reported quota window ends or reaches 100% usage.
               </p>
             </div>
           </div>
@@ -179,6 +179,9 @@ function EstimateTooltip({
             <TooltipRow label="Observed cost" value={`${lowerBound ? '≥' : ''}${formatUsageCost(point.observedCostUsd)}`} />
             <TooltipRow label="Quota used" value={`${point.observedUsedPercent.toLocaleString('en', { maximumFractionDigits: 2 })}%`} />
             <TooltipRow label="Priced coverage" value={`${coverage}% (${point.pricedAttempts}/${point.dispatchedAttempts})`} />
+            {point.samplingIncomplete ? (
+              <TooltipRow label="Sampling coverage" value="Incomplete after early reset" />
+            ) : null}
             <TooltipRow label="Observed" value={formatUsageDateTime(point.observedAtMs)} />
             <TooltipRow label="Window" value={formatUsageRange(point.windowStartMs, point.windowEndMs)} />
           </div>

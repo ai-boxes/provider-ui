@@ -10,6 +10,7 @@ const estimate: NonNullable<ProviderQuota['estimate']> = {
   periodKind: 'rolling',
   durationSeconds: 18_000,
   windowStartMs: 1_700_000_000_000,
+  samplingIncomplete: false,
   windowEndMs: 1_700_018_000_000,
   observedAtMs: 1_700_017_000_000,
   observedUsedPercent: 50,
