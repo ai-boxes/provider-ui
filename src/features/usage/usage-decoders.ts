@@ -12,6 +12,7 @@ import type {
 } from './usage-types.ts'
 import {
   optionalEnum,
+  optionalString,
   requireArray,
   requireEnum,
   requireNonEmptyString,
@@ -188,6 +189,10 @@ function decodeRequestSummary(value: unknown, label: string): UsageRequestSummar
       record.client_model == null
         ? null
         : requireNonEmptyString(record.client_model, `${label} model`),
+    providerReportedModel: optionalString(
+      record.provider_reported_model,
+      `${label} provider reported model`,
+    ),
     reasoningEffort:
       record.reasoning_effort == null
         ? null

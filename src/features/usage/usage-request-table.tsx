@@ -1,6 +1,11 @@
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,7 +25,8 @@ import type {
   UsageRequestStatus,
   UsageRequestSummary,
 } from '@/features/usage/usage-types'
-import { statusBadgeTone } from '@/lib/status-tone'
+import { statusBadgeTone, statusFillTone } from '@/lib/status-tone'
+import { cn } from '@/lib/utils'
 
 export function UsageRequestsTable({
   items,
@@ -58,8 +64,8 @@ export function UsageRequestsTable({
                 <TableCell className="max-w-36 truncate pl-4 font-medium">
                   {meta.name}
                 </TableCell>
-                <TableCell className="max-w-44 truncate font-mono text-xs">
-                  {item.clientModel ?? '—'}
+                <TableCell className="max-w-52">
+                  <RequestModelCell item={item} />
                 </TableCell>
                 <TableCell>
                   <UsageStatusBadge status={item.status} />
@@ -101,6 +107,44 @@ export function UsageRequestsTable({
         </TableBody>
       </Table>
     </div>
+  )
+}
+
+function RequestModelCell({ item }: { item: UsageRequestSummary }) {
+  const requested = item.clientModel
+  const reported = item.providerReportedModel
+  if (reported === null) {
+    return (
+      <span className="block truncate font-mono text-xs">
+        {requested ?? '—'}
+      </span>
+    )
+  }
+
+  const matches = requested === reported
+  const tone = matches ? 'success' : 'warning'
+  return (
+    <Collapsible className="min-w-0">
+      <CollapsibleTrigger className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-md text-left outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
+        <span
+          className={cn('size-1.5 shrink-0 rounded-full', statusFillTone(tone))}
+          aria-hidden="true"
+        />
+        <span className="min-w-0 truncate font-mono text-xs">
+          {requested ?? '—'}
+        </span>
+        <span className="sr-only">
+          {matches
+            ? `Matches upstream ${reported}`
+            : `Upstream responded with ${reported}`}
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="min-w-0 pl-3.5">
+        <p className="truncate font-mono text-[11px] text-muted-foreground">
+          Upstream: {reported}
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 

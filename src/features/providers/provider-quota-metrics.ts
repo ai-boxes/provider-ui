@@ -43,7 +43,9 @@ export function matchingPrimaryEstimate(
   return primary &&
     estimate &&
     estimate.quotaGroupKey === primary.group.key &&
-    estimate.quotaMetricKey === primary.metric.key
+    estimate.quotaMetricKey === primary.metric.key &&
+    estimate.periodKind === primary.metric.period?.kind &&
+    estimate.durationSeconds === primary.metric.period?.durationSeconds
     ? estimate
     : null
 }

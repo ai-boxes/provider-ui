@@ -49,6 +49,7 @@ export type UsageRequestSummary = {
   apiKeyLabel: string | null
   apiKeyGroupLabels: string[] | null
   clientModel: string | null
+  providerReportedModel: string | null
   reasoningEffort: string | null
   startedAtMs: number
   completedAtMs: number

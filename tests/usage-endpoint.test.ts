@@ -65,6 +65,7 @@ function usageRequestsPayload(endpoint: unknown) {
         api_key_label: null,
         api_key_group_labels: null,
         client_model: 'example-model',
+        provider_reported_model: 'example-model',
         reasoning_effort: null,
         started_at_ms: 1_000,
         completed_at_ms: 2_000,
@@ -80,3 +81,19 @@ function usageRequestsPayload(endpoint: unknown) {
     next_cursor: null,
   }
 }
+
+test('usage request reported model is optional and preserved', () => {
+  const matched = decodeUsageRequests(usageRequestsPayload('openai_responses'))
+  assert.equal(matched.requests[0]?.clientModel, 'example-model')
+  assert.equal(matched.requests[0]?.providerReportedModel, 'example-model')
+
+  const payload = usageRequestsPayload('openai_responses')
+  const request = (payload.requests as Record<string, unknown>[])[0]
+  request.provider_reported_model = 'gpt-5.6-luna'
+  const remapped = decodeUsageRequests(payload)
+  assert.equal(remapped.requests[0]?.providerReportedModel, 'gpt-5.6-luna')
+
+  delete request.provider_reported_model
+  const missing = decodeUsageRequests(payload)
+  assert.equal(missing.requests[0]?.providerReportedModel, null)
+})
